@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rain &amp; Lofi</title>
+<style>
+  :root{
+    --panel-bg: rgba(18,20,28,0.72);
+    --panel-border: rgba(255,255,255,0.08);
+    --text: rgba(235,238,245,0.92);
+    --text-dim: rgba(235,238,245,0.55);
+    --accent: #7fa8ff;
+  }
+  html, body { margin:0; padding:0; overflow:hidden; background:#0a0e1a; height:100%; }
+  canvas { display:block; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+  .info {
+    position:fixed; top:16px; left:16px; color:var(--text-dim);
+    font-size:12.5px; line-height:1.4; pointer-events:none; user-select:none;
+    transition: opacity 0.3s;
+  }
+
+  .toggle-btn{
+    position:fixed; top:16px; right:16px; z-index:20;
+    width:42px; height:42px; border-radius:50%;
+    background: var(--panel-bg); border:1px solid var(--panel-border);
+    color:var(--text); cursor:pointer; backdrop-filter: blur(10px);
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px;
+  }
+  .toggle-btn:hover{ background: rgba(30,33,44,0.85); }
+
+  .panel{
+    position:fixed; top:70px; right:16px; z-index:19;
+    width:250px; padding:16px 16px 14px;
+    background: var(--panel-bg); border:1px solid var(--panel-border);
+    border-radius:14px; backdrop-filter: blur(14px);
+    color: var(--text);
+    transform: translateX(285px);
+    opacity:0;
+    transition: transform 0.35s ease, opacity 0.35s ease;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .panel.open{ transform: translateX(0); opacity:1; }
+
+  .panel h3{
+    margin:0 0 12px; font-size:12px; letter-spacing:0.08em; text-transform:uppercase;
+    color: var(--text-dim); font-weight:600;
+  }
+  .row{ margin-bottom:14px; }
+  .row label{
+    display:flex; justify-content:space-between; font-size:12.5px;
+    margin-bottom:6px; color: var(--text);
+  }
+  .row label span.val{ color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  input[type=range]{
+    -webkit-appearance:none; width:100%; height:4px; border-radius:2px;
+    background: rgba(255,255,255,0.15); outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+    background: var(--accent); cursor:pointer; box-shadow:0 0 0 3px rgba(127,168,255,0.2);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:14px; height:14px; border-radius:50%; border:none;
+    background: var(--accent); cursor:pointer;
+  }
+
+  .btn-row{ display:flex; gap:8px; margin-bottom:14px; }
+  .pill{
+    flex:1; padding:8px 4px; text-align:center; font-size:12px;
+    border-radius:8px; background: rgba(255,255,255,0.06);
+    border:1px solid transparent; cursor:pointer; color: var(--text-dim);
+    transition: all 0.2s;
+  }
+  .pill:hover{ background: rgba(255,255,255,0.1); color: var(--text); }
+  .pill.active{
+    background: rgba(127,168,255,0.18); border-color: rgba(127,168,255,0.4);
+    color: var(--accent);
+  }
+
+  .divider{ height:1px; background: var(--panel-border); margin:14px 0; }
+
+  .music-row{
+    display:flex; align-items:center; gap:10px; margin-bottom:12px;
+  }
+  .play-btn{
+    width:36px; height:36px; min-width:36px; border-radius:50%;
+    background: var(--accent); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; color:#0a0e1a;
+    font-size:14px;
+  }
+  .music-label{ font-size:12.5px; color: var(--text-dim); }
+  .music-label b{ color: var(--text); font-weight:600; display:block; font-size:12.5px; }
+
+  .checkbox-row{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:12.5px; color: var(--text); margin-bottom:10px;
+  }
+  .switch{
+    position:relative; width:36px; height:20px; border-radius:10px;
+    background: rgba(255,255,255,0.15); cursor:pointer; transition: background 0.2s;
+    flex-shrink:0;
+  }
+  .switch.on{ background: var(--accent); }
+  .switch::after{
+    content:''; position:absolute; top:2px; left:2px; width:16px; height:16px;
+    border-radius:50%; background:#fff; transition: transform 0.2s;
+  }
+  .switch.on::after{ transform: translateX(16px); }
+
+  .note{ font-size:11px; color: var(--text-dim); line-height:1.5; margin-top:2px; }
+
+  @media (max-width: 520px){
+    .panel{ width: 210px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="info" id="hint">click sky to shift wind &middot; scroll to change intensity &middot; H to hide UI</div>
+
+<button class="toggle-btn" id="toggleBtn" title="Settings">&#9881;</button>
+
+<div class="panel" id="panel">
+  <h3>Ambience</h3>
+
+  <div class="music-row">
+    <button class="play-btn" id="playBtn">&#9658;</button>
+    <div class="music-label"><b id="trackName">Lofi Rain Loop</b>synth chords + beat + rain</div>
+  </div>
+  <div class="row">
+    <label>Music volume <span class="val" id="musicVolVal">35%</span></label>
+    <input type="range" id="musicVol" min="0" max="100" value="35">
+  </div>
+  <div class="row">
+    <label>Rain volume <span class="val" id="rainVolVal">40%</span></label>
+    <input type="range" id="rainVol" min="0" max="100" value="40">
+  </div>
+  <div class="note">Music is generated live in your browser (synth pad + soft beat + vinyl crackle) — no external audio files.</div>
+
+  <div class="divider"></div>
+
+  <h3>Weather</h3>
+  <div class="row">
+    <label>Intensity <span class="val" id="intensityVal">1.0x</span></label>
+    <input type="range" id="intensity" min="20" max="250" value="100">
+  </div>
+  <div class="row">
+    <label>Wind <span class="val" id="windVal">0.6</span></label>
+    <input type="range" id="wind" min="-200" max="200" value="60">
+  </div>
+
+  <div class="checkbox-row">
+    <span>Lightning</span>
+    <div class="switch on" id="lightningSwitch"></div>
+  </div>
+  <div class="checkbox-row">
+    <span>Fog layer</span>
+    <div class="switch on" id="fogSwitch"></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <h3>Scene</h3>
+  <div class="btn-row">
+    <div class="pill active" data-theme="night">Night</div>
+    <div class="pill" data-theme="dusk">Dusk</div>
+    <div class="pill" data-theme="storm">Storm</div>
+  </div>
+  <div class="btn-row">
+    <div class="pill" id="fullscreenBtn">Fullscreen</div>
+    <div class="pill" id="hideUiBtn">Hide UI</div>
+  </div>
+</div>
+
+<script>
+/* ============ CANVAS SETUP ============ */
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+let wind = 0.6;
+let intensity = 1;
+let lightningEnabled = true;
+let fogEnabled = true;
+let theme = 'night';
+
+const THEMES = {
+  night: { top:'#05070f', bottom:'#131a2b', drop:'180,200,230' },
+  dusk:  { top:'#1a1027', bottom:'#3a2a4a', drop:'210,190,220' },
+  storm: { top:'#02040a', bottom:'#1a2233', drop:'160,180,210' }
+};
+
+canvas.addEventListener('click', (e) => {
+  wind = ((e.clientX / W) - 0.5) * 4;
+  windSlider.value = Math.round(wind * 100);
+  updateWindLabel();
+});
+
+/* ============ BACKGROUND ============ */
+function drawBackground(){
+  const t = THEMES[theme];
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0, t.top);
+  g.addColorStop(1, t.bottom);
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,W,H);
+}
+
+/* ============ DROPS ============ */
+class Drop {
+  constructor(){ this.reset(true); }
+  reset(initial){
+    this.x = Math.random() * (W + 400) - 200;
+    this.y = initial ? Math.random() * -H : -20 - Math.random()*100;
+    this.len = 10 + Math.random() * 20;
+    this.speed = 6 + Math.random() * 8;
+    this.thick = 0.6 + Math.random() * 1.4;
+    this.opacity = 0.15 + Math.random() * 0.35;
+  }
+  update(){
+    this.y += this.speed * intensity;
+    this.x += wind * (this.speed / 10);
+    if (this.y > H - 4){
+      splashes.push(new Splash(this.x, H, this.thick));
+      this.reset(false);
+    } else if (this.x < -250 || this.x > W + 250){
+      this.reset(false);
+    }
+  }
+  draw(){
+    const t = THEMES[theme];
+    ctx.strokeStyle = `rgba(${t.drop},${this.opacity})`;
+    ctx.lineWidth = this.thick;
+    ctx.beginPath();
+    ctx.moveTo(this.x, this.y);
+    ctx.lineTo(this.x - wind*2, this.y + this.len);
+    ctx.stroke();
+  }
+}
+
+/* ============ SPLASHES ============ */
+class Splash {
+  constructor(x, y, size){
+    this.x = x; this.y = y;
+    this.particles = [];
+    const count = 4 + Math.floor(Math.random()*3);
+    for (let i=0;i<count;i++){
+      const angle = -Math.PI/2 + (Math.random()-0.5)*1.6;
+      const speed = 1 + Math.random()*2.2*size;
+      this.particles.push({ x:0, y:0, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, life: 1 });
+    }
+    this.ringLife = 1;
+    this.ringSize = 0;
+  }
+  update(){
+    this.ringLife -= 0.05;
+    this.ringSize += 1.2;
+    this.particles.forEach(p=>{
+      p.vy += 0.15;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 0.045;
+    });
+    this.particles = this.particles.filter(p=>p.life>0);
+  }
+  dead(){ return this.ringLife<=0 && this.particles.length===0; }
+  draw(){
+    if (this.ringLife > 0){
+      ctx.strokeStyle = `rgba(190,210,235,${this.ringLife*0.35})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(this.x, this.y, this.ringSize, this.ringSize*0.35, 0, 0, Math.PI*2);
+      ctx.stroke();
+    }
+    this.particles.forEach(p=>{
+      ctx.fillStyle = `rgba(200,215,240,${Math.max(p.life,0)*0.7})`;
+      ctx.beginPath();
+      ctx.arc(this.x+p.x, this.y+p.y, 1.4, 0, Math.PI*2);
+      ctx.fill();
+    });
+  }
+}
+
+const drops = [];
+const splashes = [];
+const DROP_COUNT = 350;
+for (let i=0;i<DROP_COUNT;i++) drops.push(new Drop());
+
+/* ============ FOG LAYER ============ */
+class FogPatch{
+  constructor(){ this.reset(); }
+  reset(){
+    this.x = Math.random()*W;
+    this.y = H*0.6 + Math.random()*H*0.4;
+    this.r = 120 + Math.random()*220;
+    this.speed = 0.05 + Math.random()*0.15;
+    this.opacity = 0.02 + Math.random()*0.04;
+  }
+  update(){
+    this.x += this.speed;
+    if (this.x - this.r > W) this.x = -this.r;
+  }
+  draw(){
+    const g = ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,this.r);
+    g.addColorStop(0, `rgba(180,190,210,${this.opacity})`);
+    g.addColorStop(1, 'rgba(180,190,210,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+    ctx.fill();
+  }
+}
+const fogPatches = [];
+for (let i=0;i<6;i++) fogPatches.push(new FogPatch());
+
+/* ============ GROUND ============ */
+function drawGround(){
+  const gh = 60;
+  const g = ctx.createLinearGradient(0, H-gh, 0, H);
+  g.addColorStop(0, 'rgba(20,26,42,0)');
+  g.addColorStop(1, 'rgba(10,14,24,0.9)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, H-gh, W, gh);
+}
+
+/* ============ LIGHTNING ============ */
+let flashAlpha = 0;
+function maybeFlash(){
+  if (!lightningEnabled) return;
+  const chance = theme === 'storm' ? 0.006 : 0.0015;
+  if (Math.random() < chance){
+    flashAlpha = 0.5 + Math.random()*0.3;
+    playThunder();
+  }
+  if (flashAlpha > 0){
+    ctx.fillStyle = `rgba(210,225,255,${flashAlpha})`;
+    ctx.fillRect(0,0,W,H);
+    flashAlpha -= 0.04;
+  }
+}
+
+/* ============ MAIN LOOP ============ */
+function animate(){
+  drawBackground();
+
+  drops.forEach(d=>{ d.update(); d.draw(); });
+
+  for (let i=splashes.length-1;i>=0;i--){
+    splashes[i].update();
+    splashes[i].draw();
+    if (splashes[i].dead()) splashes.splice(i,1);
+  }
+
+  if (fogEnabled){
+    fogPatches.forEach(f=>{ f.update(); f.draw(); });
+  }
+
+  drawGround();
+  maybeFlash();
+
+  requestAnimationFrame(animate);
+}
+animate();
+
+/* =========================================================
+   AUDIO ENGINE — procedurally generated lofi + rain + thunder
+   All synthesized in-browser via Web Audio API (no external
+   audio files, fully royalty-free).
+   ========================================================= */
+let audioCtx = null;
+let musicGain, rainGain, masterGain;
+let rainNoiseSource, rainFilter;
+let musicPlaying = false;
+let chordTimer = null;
+let beatTimer = null;
+
+function initAudio(){
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 1;
+  masterGain.connect(audioCtx.destination);
+
+  musicGain = audioCtx.createGain();
+  musicGain.gain.value = 0.35;
+  musicGain.connect(masterGain);
+
+  rainGain = audioCtx.createGain();
+  rainGain.gain.value = 0.4;
+  rainGain.connect(masterGain);
+
+  setupRainNoise();
+  setupVinylCrackle();
+}
+
+// --- brown-noise rain bed, filtered ---
+function setupRainNoise(){
+  const bufferSize = 2 * audioCtx.sampleRate;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  let lastOut = 0;
+  for (let i=0;i<bufferSize;i++){
+    const white = Math.random()*2-1;
+    lastOut = (lastOut + 0.02*white) / 1.02;
+    data[i] = lastOut * 4.5;
+  }
+  rainNoiseSource = audioCtx.createBufferSource();
+  rainNoiseSource.buffer = buffer;
+  rainNoiseSource.loop = true;
+
+  rainFilter = audioCtx.createBiquadFilter();
+  rainFilter.type = 'bandpass';
+  rainFilter.frequency.value = 2200;
+  rainFilter.Q.value = 0.6;
+
+  const hiss = audioCtx.createBiquadFilter();
+  hiss.type = 'highshelf';
+  hiss.frequency.value = 4000;
+  hiss.gain.value = 6;
+
+  rainNoiseSource.connect(rainFilter);
+  rainFilter.connect(hiss);
+  hiss.connect(rainGain);
+  rainNoiseSource.start();
+}
+
+// --- subtle vinyl crackle loop for lofi texture ---
+function setupVinylCrackle(){
+  const bufferSize = 2 * audioCtx.sampleRate;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i=0;i<bufferSize;i++){
+    data[i] = (Math.random() < 0.002) ? (Math.random()*2-1)*0.6 : 0;
+  }
+  const src = audioCtx.createBufferSource();
+  src.buffer = buffer;
+  src.loop = true;
+  const g = audioCtx.createGain();
+  g.gain.value = 0.5;
+  src.connect(g);
+  g.connect(musicGain);
+  src.start();
+}
+
+// --- lofi chord pad, cycles through a warm jazzy progression ---
+const CHORDS = [
+  [220.00, 261.63, 329.63, 392.00],
+  [196.00, 246.94, 293.66, 349.23],
+  [174.61, 220.00, 261.63, 329.63],
+  [246.94, 293.66, 349.23, 415.30]
+];
+let chordIndex = 0;
+
+function playChord(){
+  if (!audioCtx) return;
+  const notes = CHORDS[chordIndex % CHORDS.length];
+  chordIndex++;
+  const now = audioCtx.currentTime;
+  const dur = 3.6;
+
+  notes.forEach((freq, idx) => {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq * (idx === 0 ? 0.5 : 1);
+
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.06, now + 0.6);
+    g.gain.linearRampToValueAtTime(0.0, now + dur);
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 1200;
+
+    osc.connect(filter);
+    filter.connect(g);
+    g.connect(musicGain);
+
+    osc.start(now);
+    osc.stop(now + dur + 0.1);
+  });
+}
+
+// --- soft lofi kick + tick for a slow beat ---
+function playKick(){
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(120, now);
+  osc.frequency.exponentialRampToValueAtTime(40, now + 0.25);
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.5, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+  osc.connect(g); g.connect(musicGain);
+  osc.start(now); osc.stop(now + 0.3);
+}
+function playTick(){
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const bufferSize = audioCtx.sampleRate * 0.05;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i=0;i<bufferSize;i++) data[i] = (Math.random()*2-1) * (1 - i/bufferSize);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buffer;
+  const filt = audioCtx.createBiquadFilter();
+  filt.type = 'highpass';
+  filt.frequency.value = 3000;
+  const g = audioCtx.createGain();
+  g.gain.value = 0.15;
+  src.connect(filt); filt.connect(g); g.connect(musicGain);
+  src.start(now);
+}
+
+function startMusicLoop(){
+  playChord();
+  chordTimer = setInterval(playChord, 3600);
+
+  let beat = 0;
+  beatTimer = setInterval(() => {
+    if (beat % 4 === 0) playKick();
+    if (beat % 2 === 1) playTick();
+    beat++;
+  }, 450);
+}
+function stopMusicLoop(){
+  clearInterval(chordTimer);
+  clearInterval(beatTimer);
+}
+
+function playThunder(){
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const bufferSize = audioCtx.sampleRate * 1.2;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  let lastOut = 0;
+  for (let i=0;i<bufferSize;i++){
+    const white = Math.random()*2-1;
+    lastOut = (lastOut + 0.04*white) / 1.04;
+    data[i] = lastOut * 3 * (1 - i/bufferSize);
+  }
+  const src = audioCtx.createBufferSource();
+  src.buffer = buffer;
+  const filt = audioCtx.createBiquadFilter();
+  filt.type = 'lowpass';
+  filt.frequency.value = 500;
+  const g = audioCtx.createGain();
+  g.gain.value = 0.35;
+  src.connect(filt); filt.connect(g); g.connect(masterGain);
+  src.start(now);
+}
+
+/* ============ UI WIRING ============ */
+const panel = document.getElementById('panel');
+const toggleBtn = document.getElementById('toggleBtn');
+const hint = document.getElementById('hint');
+toggleBtn.addEventListener('click', () => panel.classList.toggle('open'));
+
+const playBtn = document.getElementById('playBtn');
+playBtn.addEventListener('click', () => {
+  initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (!musicPlaying){
+    startMusicLoop();
+    musicPlaying = true;
+    playBtn.innerHTML = '&#10074;&#10074;';
+  } else {
+    stopMusicLoop();
+    musicPlaying = false;
+    playBtn.innerHTML = '&#9658;';
+  }
+});
+
+const musicVol = document.getElementById('musicVol');
+const musicVolVal = document.getElementById('musicVolVal');
+musicVol.addEventListener('input', () => {
+  initAudio();
+  const v = musicVol.value/100;
+  musicGain.gain.value = v * 0.5;
+  musicVolVal.textContent = musicVol.value + '%';
+});
+
+const rainVol = document.getElementById('rainVol');
+const rainVolVal = document.getElementById('rainVolVal');
+rainVol.addEventListener('input', () => {
+  initAudio();
+  const v = rainVol.value/100;
+  rainGain.gain.value = v * 0.7;
+  rainVolVal.textContent = rainVol.value + '%';
+});
+
+const intensitySlider = document.getElementById('intensity');
+const intensityVal = document.getElementById('intensityVal');
+intensitySlider.addEventListener('input', () => {
+  intensity = intensitySlider.value/100;
+  intensityVal.textContent = intensity.toFixed(1) + 'x';
+  if (rainFilter) rainFilter.frequency.value = 1500 + intensity*1200;
+  if (audioCtx) rainGain.gain.value = (rainVol.value/100) * 0.7 * Math.min(intensity,1.5);
+});
+
+const windSlider = document.getElementById('wind');
+const windVal = document.getElementById('windVal');
+function updateWindLabel(){ windVal.textContent = (windSlider.value/100).toFixed(1); }
+windSlider.addEventListener('input', () => {
+  wind = windSlider.value/100;
+  updateWindLabel();
+});
+
+document.getElementById('lightningSwitch').addEventListener('click', function(){
+  lightningEnabled = !lightningEnabled;
+  this.classList.toggle('on', lightningEnabled);
+});
+document.getElementById('fogSwitch').addEventListener('click', function(){
+  fogEnabled = !fogEnabled;
+  this.classList.toggle('on', fogEnabled);
+});
+
+document.querySelectorAll('.pill[data-theme]').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.pill[data-theme]').forEach(p=>p.classList.remove('active'));
+    pill.classList.add('active');
+    theme = pill.dataset.theme;
+    if (theme === 'storm'){
+      intensitySlider.value = 180;
+      intensitySlider.dispatchEvent(new Event('input'));
+    }
+  });
+});
+
+document.getElementById('fullscreenBtn').addEventListener('click', () => {
+  if (!document.fullscreenElement){
+    document.documentElement.requestFullscreen().catch(()=>{});
+  } else {
+    document.exitFullscreen();
+  }
+});
+
+let uiHidden = false;
+document.getElementById('hideUiBtn').addEventListener('click', () => {
+  uiHidden = true;
+  panel.classList.remove('open');
+  toggleBtn.style.display = 'none';
+  hint.style.opacity = '0';
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && uiHidden){
+    uiHidden = false;
+    toggleBtn.style.display = 'flex';
+    hint.style.opacity = '1';
+  }
+  if (e.key.toLowerCase() === 'h'){
+    if (uiHidden){
+      uiHidden = false;
+      toggleBtn.style.display = 'flex';
+      hint.style.opacity = '1';
+    } else {
+      document.getElementById('hideUiBtn').click();
+    }
+  }
+});
+</script>
+</body>
+</html>

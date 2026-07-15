@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Experiments — Research & Prototyping</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #202124;
+    background: #ffffff;
+  }
+
+  /* ============ HEADER ============ */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #ffffff;
+    border-bottom: 1px solid #dadce0;
+    transition: all 0.3s ease;
+  }
+
+  .header-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 32px;
+  }
+
+  .logo {
+    font-size: 20px;
+    font-weight: 500;
+    color: #202124;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: opacity 0.3s ease;
+  }
+
+  .logo:hover {
+    opacity: 0.7;
+  }
+
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #1f2937, #374151);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .search-box {
+    flex: 1;
+    max-width: 450px;
+    position: relative;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 12px 16px 12px 42px;
+    border: 1px solid #dadce0;
+    border-radius: 24px;
+    background: #f8f9fa;
+    color: #202124;
+    font-size: 14px;
+    transition: all 0.3s ease;
+  }
+
+  .search-box input::placeholder {
+    color: #5f6368;
+  }
+
+  .search-box input:focus {
+    outline: none;
+    background: #ffffff;
+    border-color: #dadce0;
+    box-shadow: 0 1px 6px rgba(32, 33, 36, 0.08);
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #5f6368;
+    font-size: 16px;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .nav-link {
+    color: #202124;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.3s ease;
+  }
+
+  .nav-link:hover {
+    color: #1f2937;
+  }
+
+  /* ============ HERO ============ */
+  .hero {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 80px 24px 100px;
+    text-align: center;
+  }
+
+  .hero h1 {
+    font-size: 56px;
+    font-weight: 300;
+    letter-spacing: -0.5px;
+    margin-bottom: 20px;
+    color: #202124;
+    line-height: 1.1;
+  }
+
+  .hero p {
+    font-size: 18px;
+    color: #5f6368;
+    max-width: 700px;
+    margin: 0 auto 48px;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+
+  .hero-cta {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 64px;
+  }
+
+  .btn {
+    padding: 12px 28px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: #1f2937;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: #111827;
+    box-shadow: 0 2px 8px rgba(31, 41, 55, 0.2);
+  }
+
+  .btn-secondary {
+    background: #f8f9fa;
+    color: #202124;
+    border: 1px solid #dadce0;
+  }
+
+  .btn-secondary:hover {
+    background: #f1f3f4;
+    border-color: #dadce0;
+  }
+
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 64px;
+    flex-wrap: wrap;
+    padding-top: 48px;
+    border-top: 1px solid #dadce0;
+  }
+
+  .stat {
+    text-align: center;
+    transition: opacity 0.3s ease;
+  }
+
+  .stat:hover {
+    opacity: 0.8;
+  }
+
+  .stat-num {
+    font-size: 36px;
+    font-weight: 500;
+    color: #1f2937;
+    display: block;
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: #5f6368;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 8px;
+    font-weight: 500;
+  }
+
+  /* ============ CONTROLS ============ */
+  .controls {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px 40px;
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .filter-label {
+    font-size: 12px;
+    color: #5f6368;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+
+  .filter-pills {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .pill {
+    padding: 10px 16px;
+    border: 1px solid #dadce0;
+    border-radius: 20px;
+    background: white;
+    color: #202124;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .pill:hover {
+    border-color: #1f2937;
+    background: #f8f9fa;
+  }
+
+  .pill.active {
+    background: #1f2937;
+    color: white;
+    border-color: #1f2937;
+  }
+
+  /* ============ GRID ============ */
+  .projects {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px 120px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+  }
+
+  .project-card {
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .project-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #1f2937;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+  }
+
+  .project-card:hover {
+    border-color: #dadce0;
+    box-shadow: 0 4px 12px rgba(32, 33, 36, 0.1);
+  }
+
+  .project-card:hover::before {
+    transform: scaleX(1);
+  }
+
+  .project-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 4px;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 16px;
+    transition: all 0.3s ease;
+  }
+
+  .project-card:hover .project-icon {
+    transform: scale(1.1);
+  }
+
+  .project-title {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #202124;
+    transition: color 0.3s ease;
+  }
+
+  .project-card:hover .project-title {
+    color: #1f2937;
+  }
+
+  .project-description {
+    font-size: 13px;
+    color: #5f6368;
+    margin-bottom: 16px;
+    flex-grow: 1;
+    line-height: 1.6;
+  }
+
+  .project-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .project-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    background: #f8f9fa;
+    color: #5f6368;
+  }
+
+  .project-arrow {
+    color: #1f2937;
+    font-size: 16px;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: all 0.3s ease;
+  }
+
+  .project-card:hover .project-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 24px;
+    color: #5f6368;
+  }
+
+  .empty-state p {
+    margin-top: 12px;
+    font-size: 14px;
+  }
+
+  /* ============ FOOTER ============ */
+  footer {
+    border-top: 1px solid #dadce0;
+    background: #f8f9fa;
+    padding: 40px 24px;
+  }
+
+  .footer-content {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .footer-links {
+    display: flex;
+    justify-content: flex-start;
+    gap: 32px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .footer-links a {
+    color: #202124;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: color 0.3s ease;
+  }
+
+  .footer-links a:hover {
+    color: #1f2937;
+  }
+
+  .footer-bottom {
+    font-size: 12px;
+    color: #5f6368;
+  }
+
+  .footer-divider {
+    height: 1px;
+    background: #dadce0;
+    margin: 24px 0;
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 768px) {
+    .header-inner {
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .search-box {
+      max-width: 100%;
+      order: 3;
+      width: 100%;
+    }
+
+    .nav-links {
+      order: 2;
+    }
+
+    .hero h1 {
+      font-size: 36px;
+    }
+
+    .hero p {
+      font-size: 16px;
+    }
+
+    .hero-stats {
+      gap: 32px;
+    }
+
+    .grid {
+      grid-template-columns: 1fr;
+    }
+
+    .controls {
+      gap: 12px;
+    }
+
+    .filter-label {
+      width: 100%;
+    }
+
+    .filter-pills {
+      width: 100%;
+    }
+
+    .footer-links {
+      flex-direction: column;
+      gap: 12px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+      animation: none !important;
+    }
+
+    .project-card::before {
+      display: none;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <div class="logo-icon">◈</div>
+      <span>Experiments</span>
+    </a>
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search projects...">
+    </div>
+    <div class="nav-links">
+      <a href="https://github.com/Mohakdev1220" target="_blank" class="nav-link">GitHub</a>
+      <a href="https://youtube.com/@MOHAKCHOUBEY" target="_blank" class="nav-link">YouTube</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <h1>Experiments & Research</h1>
+  <p>Exploring web technologies, interactive design, and creative coding. Each project is a learning journey and research prototype.</p>
+  <div class="hero-cta">
+    <a href="#projects" class="btn btn-primary">Explore Projects</a>
+    <a href="about" class="btn btn-secondary">About Me</a>
+  </div>
+  <div class="hero-stats">
+    <div class="stat">
+      <span class="stat-num" id="projectCount">15</span>
+      <span class="stat-label">Projects</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">100%</span>
+      <span class="stat-label">Vanilla JS</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">∞</span>
+      <span class="stat-label">Learning</span>
+    </div>
+  </div>
+</section>
+
+<section class="controls">
+  <span class="filter-label">Filter by</span>
+  <div class="filter-pills">
+    <button class="pill active" data-filter="all">All</button>
+    <button class="pill" data-filter="tool">Tools</button>
+    <button class="pill" data-filter="game">Games</button>
+    <button class="pill" data-filter="visualization">Visualization</button>
+    <button class="pill" data-filter="productivity">Productivity</button>
+    <button class="pill" data-filter="ai">AI & Chat</button>
+  </div>
+</section>
+
+<section class="projects" id="projects">
+  <div class="grid" id="projectGrid"></div>
+  <div class="empty-state" id="emptyState" style="display: none;">
+    <p>No projects found matching your search.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-content">
+    <div class="footer-links">
+      <a href="https://mohakdev1220.github.io/experiments/about">About Me</a>
+      <a href="https://mohakdev1220.github.io/websites_link/" target="_blank">My Websites</a>
+      <a href="https://github.com/Mohakdev1220" target="_blank">GitHub</a>
+      <a href="https://youtube.com/@MOHAKCHOUBEY" target="_blank">YouTube</a>
+    </div>
+    <div class="footer-divider"></div>
+    <div class="footer-bottom">
+      <p>&copy; 2026 Mohak Choubey. All experiments and projects for research & learning purposes.</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+const PROJECTS = [
+  {
+    title: "Rain Simulation",
+    description: "Interactive canvas rain with physics-based drops, splashing effects, and procedurally generated lofi audio.",
+    category: "visualization",
+    icon: "🌧️",
+    url: "https://mohakdev1220.github.io/experiments/Rain-simulation",
+    tags: ["Canvas", "Animation", "Audio"]
+  },
+  {
+    title: "Rule-Based AI Chatbot",
+    description: "Intelligent chatbot assistant with keyword-based rules, natural language processing, and O(1) lookup performance.",
+    category: "ai",
+    icon: "🤖",
+    url: "https://mohakdev1220.github.io/toolify/workspace-assistant-rulebased-ai-chatbot",
+    tags: ["AI", "Chatbot", "NLP"]
+  },
+  {
+    title: "Games Collection",
+    description: "Curated collection of interactive games built with vanilla JavaScript including RPGs and puzzle games.",
+    category: "game",
+    icon: "🎮",
+    url: "https://mohakdev1220.github.io/toolify/games",
+    tags: ["Games", "Interactive"]
+  }
+];
+
+const projectGrid = document.getElementById('projectGrid');
+const searchInput = document.getElementById('searchInput');
+const filterPills = document.querySelectorAll('.pill');
+const emptyState = document.getElementById('emptyState');
+const projectCount = document.getElementById('projectCount');
+
+let activeFilter = 'all';
+
+function renderProjects(projects) {
+  projectGrid.innerHTML = '';
+  if (projects.length === 0) {
+    emptyState.style.display = 'block';
+    projectGrid.style.display = 'none';
+    return;
+  }
+  emptyState.style.display = 'none';
+  projectGrid.style.display = 'grid';
+
+  projects.forEach((project, index) => {
+    const card = document.createElement('a');
+    card.href = project.url;
+    card.target = '_blank';
+    card.className = 'project-card';
+    card.style.animation = `fadeIn 0.4s ease ${index * 0.05}s both`;
+
+    card.innerHTML = `
+      <div class="project-icon">${project.icon}</div>
+      <h3 class="project-title">${project.title}</h3>
+      <p class="project-description">${project.description}</p>
+      <div class="project-meta">
+        <span class="project-tag">${project.category}</span>
+        <span class="project-arrow">→</span>
+      </div>
+    `;
+
+    projectGrid.appendChild(card);
+  });
+
+  projectCount.textContent = projects.length;
+}
+
+function filterAndSearch() {
+  const query = searchInput.value.toLowerCase();
+  const filtered = PROJECTS.filter(project => {
+    const matchesCategory = activeFilter === 'all' || project.category === activeFilter;
+    const matchesSearch = project.title.toLowerCase().includes(query) ||
+                         project.description.toLowerCase().includes(query) ||
+                         project.tags.some(tag => tag.toLowerCase().includes(query));
+    return matchesCategory && matchesSearch;
+  });
+  renderProjects(filtered);
+}
+
+filterPills.forEach(pill => {
+  pill.addEventListener('click', () => {
+    filterPills.forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    activeFilter = pill.dataset.filter;
+    filterAndSearch();
+  });
+});
+
+searchInput.addEventListener('input', filterAndSearch);
+
+// Add fade-in animation
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+document.head.appendChild(style);
+
+// Initial render
+renderProjects(PROJECTS);
+</script>
+
+</body>
+</html>

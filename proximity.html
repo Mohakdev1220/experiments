@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proximity</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0f172a;color:#e2e8f0;overflow:hidden}
+  
+  .container{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+  
+  h1{font-size:48px;font-weight:300;letter-spacing:-1px;margin-bottom:12px;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  
+  .subtitle{font-size:14px;color:#94a3b8;margin-bottom:40px;font-weight:500;letter-spacing:0.5px}
+  
+  .status{font-size:13px;color:#64748b;margin-bottom:20px;min-height:20px}
+  .status.active{color:#60a5fa}
+  
+  .places{width:100%;max-width:600px;display:grid;gap:16px;margin-bottom:40px;max-height:60vh;overflow-y:auto}
+  
+  .place{padding:20px;background:rgba(30,41,59,0.8);border:1px solid rgba(148,163,184,0.2);border-radius:12px;backdrop-filter:blur(10px);transition:all 0.3s cubic-bezier(0.23,1,0.32,1);cursor:pointer}
+  
+  .place:hover{background:rgba(30,41,59,1);border-color:rgba(96,165,250,0.4);transform:translateY(-2px)}
+  
+  .place-name{font-size:16px;font-weight:600;margin-bottom:8px;color:#f1f5f9}
+  
+  .place-distance{font-size:24px;font-weight:300;color:#60a5fa;letter-spacing:-0.5px}
+  
+  .place-time{font-size:12px;color:#94a3b8;margin-top:8px;font-style:italic}
+  
+  .emoji{font-size:28px;display:inline-block;margin-right:8px;transition:transform 0.3s}
+  .place:hover .emoji{transform:scale(1.2) rotate(10deg)}
+  
+  .location-input{width:100%;max-width:400px;padding:12px 16px;border:1px solid rgba(148,163,184,0.3);border-radius:8px;background:rgba(30,41,59,0.9);color:#e2e8f0;font-size:14px;margin-bottom:24px;transition:all 0.3s}
+  
+  .location-input:focus{outline:none;border-color:#60a5fa;background:rgba(30,41,59,1);box-shadow:0 0 0 2px rgba(96,165,250,0.1)}
+  
+  .btn{padding:12px 24px;background:#60a5fa;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.3s;margin:8px}
+  
+  .btn:hover{background:#3b82f6;transform:translateY(-2px)}
+  
+  .btn:active{transform:translateY(0)}
+  
+  .btn-secondary{background:rgba(96,165,250,0.1);color:#60a5fa;border:1px solid rgba(96,165,250,0.3)}
+  
+  .btn-secondary:hover{background:rgba(96,165,250,0.2)}
+  
+  .your-location{font-size:12px;color:#94a3b8;margin-top:16px}
+  
+  .your-location strong{color:#e2e8f0;font-weight:600}
+  
+  @media(max-width:640px){
+    h1{font-size:32px}
+    .places{max-height:50vh}
+    .place{padding:16px}
+  }
+  
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:rgba(30,41,59,0.5)}
+  ::-webkit-scrollbar-thumb{background:rgba(96,165,250,0.3);border-radius:3px}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(96,165,250,0.5)}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Proximity</h1>
+  <p class="subtitle">How far are you from these places?</p>
+  
+  <p class="status" id="status"></p>
+  
+  <input type="text" class="location-input" id="locationInput" placeholder="Enter your city or press 'Use My Location'">
+  
+  <div>
+    <button class="btn" onclick="useCurrentLocation()">📍 Use My Location</button>
+    <button class="btn btn-secondary" onclick="searchLocation()">Search</button>
+  </div>
+  
+  <div class="places" id="places"></div>
+  
+  <div class="your-location">
+    <p id="yourLocation"></p>
+  </div>
+</div>
+
+<script>
+const PLACES = [
+  {name:"Eiffel Tower",lat:48.8584,lon:2.2945,emoji:"🗼"},
+  {name:"Statue of Liberty",lat:40.6892,lon:-74.0445,emoji:"🗽"},
+  {name:"Big Ben",lat:51.4975,lon:-0.1357,emoji:"🕐"},
+  {name:"Taj Mahal",lat:27.1751,lon:78.0421,emoji:"💎"},
+  {name:"Great Wall of China",lat:40.4319,lon:116.5704,emoji:"🏯"},
+  {name:"Colosseum",lat:41.8902,lon:12.4924,emoji:"🏛️"},
+  {name:"Christ the Redeemer",lat:-22.9519,lon:-43.2105,emoji:"✝️"},
+  {name:"Pyramids of Giza",lat:29.9792,lon:31.1342,emoji:"🔺"},
+  {name:"Machu Picchu",lat:-13.1631,lon:-72.5450,emoji:"⛰️"},
+  {name:"Sydney Opera House",lat:-33.8568,lon:151.2153,emoji:"🎭"},
+  {name:"Mount Everest",lat:27.9881,lon:86.9250,emoji:"⛏️"},
+  {name:"Aurora Borealis",lat:68.0,lon:19.0,emoji:"🌌"},
+  {name:"Sahara Desert",lat:23.4,lon:2.5,emoji:"🏜️"},
+  {name:"Amazon Rainforest",lat:-3.5,lon:-62.0,emoji:"🌳"},
+  {name:"Deep Space (Moon)",lat:0,lon:0,emoji:"🌙"},
+];
+
+let userLat,userLon,userName;
+
+const status=document.getElementById('status');
+const places=document.getElementById('places');
+const yourLocation=document.getElementById('yourLocation');
+const locationInput=document.getElementById('locationInput');
+
+function deg2rad(deg){return deg*(Math.PI/180)}
+
+function distance(lat1,lon1,lat2,lon2){
+  const R=6371;
+  const dLat=deg2rad(lat2-lat1);
+  const dLon=deg2rad(lon2-lon1);
+  const a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(deg2rad(lat1))*Math.cos(deg2rad(lat2))*Math.sin(dLon/2)*Math.sin(dLon/2);
+  const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  return R*c;
+}
+
+function formatDistance(km){
+  if(km<1)return Math.round(km*1000)+'m';
+  if(km<100)return km.toFixed(1)+' km';
+  return Math.round(km)+' km';
+}
+
+function travelTime(km){
+  const flight=km/900;
+  const drive=km/100;
+  const walk=km/5;
+  
+  if(km<50)return Math.round(drive)+'h drive';
+  if(km<500)return Math.round(flight*10)/10+'h flight';
+  return Math.round(flight)+'h flight';
+}
+
+function render(){
+  places.innerHTML='';
+  
+  const sorted=[...PLACES].sort((a,b)=>
+    distance(userLat,userLon,a.lat,a.lon)-distance(userLat,userLon,b.lat,b.lon)
+  );
+  
+  sorted.forEach((p,i)=>{
+    const d=distance(userLat,userLon,p.lat,p.lon);
+    const el=document.createElement('div');
+    el.className='place';
+    el.style.animationDelay=i*50+'ms';
+    el.innerHTML=`
+      <div><span class="emoji">${p.emoji}</span><span class="place-name">${p.name}</span></div>
+      <div class="place-distance">${formatDistance(d)}</div>
+      <div class="place-time">${travelTime(d)}</div>
+    `;
+    places.appendChild(el);
+  });
+  
+  yourLocation.innerHTML=`<strong>${userName}</strong> (${userLat.toFixed(2)}°, ${userLon.toFixed(2)}°)`;
+}
+
+async function geocode(name){
+  try{
+    const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(name)}&format=json&limit=1`);
+    const data=await res.json();
+    if(data.length){
+      userLat=parseFloat(data[0].lat);
+      userLon=parseFloat(data[0].lon);
+      userName=data[0].name.split(',')[0];
+      status.textContent='';
+      render();
+    }else{
+      status.textContent='❌ Place not found';
+      status.classList.remove('active');
+    }
+  }catch(e){
+    status.textContent='❌ Error: '+e.message;
+  }
+}
+
+function useCurrentLocation(){
+  status.textContent='📍 Getting your location...';
+  status.classList.add('active');
+  
+  navigator.geolocation.getCurrentPosition(pos=>{
+    userLat=pos.coords.latitude;
+    userLon=pos.coords.longitude;
+    
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userLat}&lon=${userLon}`)
+      .then(r=>r.json())
+      .then(d=>{
+        userName=d.address?.city||d.address?.town||'Your Location';
+        status.textContent='';
+        render();
+      })
+      .catch(()=>{
+        userName='Your Location';
+        status.textContent='';
+        render();
+      });
+  },err=>{
+    status.textContent='❌ '+err.message;
+    status.classList.remove('active');
+  });
+}
+
+function searchLocation(){
+  const name=locationInput.value.trim();
+  if(!name){
+    status.textContent='Enter a location';
+    return;
+  }
+  status.textContent='🔍 Searching...';
+  status.classList.add('active');
+  geocode(name);
+}
+
+locationInput.addEventListener('keypress',e=>{
+  if(e.key==='Enter')searchLocation();
+});
+
+status.textContent='📍 Click "Use My Location" or search for a place';
+</script>
+
+</body>
+</html>

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About Me — Mohak Choubey</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #202124;
+    background: #ffffff;
+  }
+
+  /* ============ HEADER ============ */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #ffffff;
+    border-bottom: 1px solid #dadce0;
+  }
+
+  .header-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 32px;
+  }
+
+  .logo {
+    font-size: 20px;
+    font-weight: 500;
+    color: #202124;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: opacity 0.3s ease;
+  }
+
+  .logo:hover {
+    opacity: 0.7;
+  }
+
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #1f2937, #374151);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .nav-link {
+    color: #202124;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.3s ease;
+  }
+
+  .nav-link:hover {
+    color: #1f2937;
+  }
+
+  /* ============ MAIN CONTENT ============ */
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 60px 24px 100px;
+  }
+
+  .about-hero {
+    margin-bottom: 64px;
+  }
+
+  .about-hero h1 {
+    font-size: 48px;
+    font-weight: 300;
+    letter-spacing: -0.5px;
+    margin-bottom: 24px;
+    color: #202124;
+  }
+
+  .about-hero p {
+    font-size: 16px;
+    color: #5f6368;
+    line-height: 1.8;
+    margin-bottom: 20px;
+  }
+
+  /* ============ SECTION ============ */
+  .section {
+    margin-bottom: 56px;
+  }
+
+  .section h2 {
+    font-size: 24px;
+    font-weight: 500;
+    margin-bottom: 20px;
+    color: #202124;
+  }
+
+  .section p {
+    font-size: 15px;
+    color: #5f6368;
+    line-height: 1.8;
+    margin-bottom: 16px;
+  }
+
+  .section ul {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  .section li {
+    font-size: 15px;
+    color: #5f6368;
+    line-height: 1.8;
+    margin-bottom: 12px;
+    padding-left: 28px;
+    position: relative;
+  }
+
+  .section li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: #1f2937;
+  }
+
+  /* ============ SKILLS ============ */
+  .skills-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 24px;
+    margin-top: 24px;
+  }
+
+  .skill-card {
+    padding: 24px;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    background: white;
+    transition: all 0.3s ease;
+  }
+
+  .skill-card:hover {
+    box-shadow: 0 4px 12px rgba(32, 33, 36, 0.1);
+  }
+
+  .skill-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #202124;
+  }
+
+  .skill-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .skill-tag {
+    display: inline-block;
+    padding: 6px 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #5f6368;
+  }
+
+  /* ============ CTA SECTION ============ */
+  .cta-section {
+    padding: 48px;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    background: #f8f9fa;
+    text-align: center;
+    margin-top: 64px;
+  }
+
+  .cta-section h3 {
+    font-size: 24px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    color: #202124;
+  }
+
+  .cta-section p {
+    font-size: 15px;
+    color: #5f6368;
+    margin-bottom: 28px;
+  }
+
+  .btn {
+    padding: 12px 28px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: #1f2937;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: #111827;
+    box-shadow: 0 2px 8px rgba(31, 41, 55, 0.2);
+  }
+
+  .btn-secondary {
+    background: white;
+    color: #202124;
+    border: 1px solid #dadce0;
+    margin-left: 12px;
+  }
+
+  .btn-secondary:hover {
+    background: #f1f3f4;
+  }
+
+  /* ============ FOOTER ============ */
+  footer {
+    border-top: 1px solid #dadce0;
+    background: #f8f9fa;
+    padding: 40px 24px;
+  }
+
+  .footer-content {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .footer-links {
+    display: flex;
+    justify-content: flex-start;
+    gap: 32px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .footer-links a {
+    color: #202124;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: color 0.3s ease;
+  }
+
+  .footer-links a:hover {
+    color: #1f2937;
+  }
+
+  .footer-bottom {
+    font-size: 12px;
+    color: #5f6368;
+  }
+
+  .footer-divider {
+    height: 1px;
+    background: #dadce0;
+    margin: 24px 0;
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 768px) {
+    .header-inner {
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .nav-links {
+      order: 2;
+    }
+
+    .about-hero h1 {
+      font-size: 32px;
+    }
+
+    .section h2 {
+      font-size: 20px;
+    }
+
+    .skills-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .cta-section {
+      padding: 32px 24px;
+    }
+
+    .btn-secondary {
+      margin-left: 0;
+      margin-top: 12px;
+      width: 100%;
+    }
+
+    .footer-links {
+      flex-direction: column;
+      gap: 12px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <div class="logo-icon">◈</div>
+      <span>Experiments</span>
+    </a>
+    <div class="nav-links">
+      <a href="index.html" class="nav-link">Projects</a>
+      <a href="https://github.com/mohakdev1220" target="_blank" class="nav-link">GitHub</a>
+      <a href="https://youtube.com/@MOHAKCHOUBEY" target="_blank" class="nav-link">YouTube</a>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="about-hero">
+    <h1>About Me</h1>
+    <p>I'm Mohak Choubey, a developer and educator based in Indore, India. I build experimental web projects exploring interactive design, creative coding, and emerging technologies. My work bridges the gap between education and innovation.</p>
+  </div>
+
+  <div class="section">
+    <h2>What I Do</h2>
+    <p>I specialize in building full-featured web applications using vanilla JavaScript, focusing on performance and user experience. My projects span productivity tools, educational content, real-time applications, and interactive visualizations.</p>
+    <p>I also support educational initiatives by creating learning materials and interactive study tools for schools in Indore, bringing technology into the classroom.</p>
+  </div>
+
+  <div class="section">
+    <h2>Philosophy</h2>
+    <p>I call myself a "vibe coder" — I believe in building things that feel good to use. Clean architecture, smooth animations, and thoughtful interactions are core to everything I create. I prefer direct, efficient collaboration and believe in learning by doing.</p>
+  </div>
+
+  <div class="section">
+    <h2>Technical Skills</h2>
+    <div class="skills-grid">
+      <div class="skill-card">
+        <div class="skill-title">Frontend</div>
+        <div class="skill-items">
+          <span class="skill-tag">HTML/CSS</span>
+          <span class="skill-tag">JavaScript</span>
+          <span class="skill-tag">Canvas</span>
+          <span class="skill-tag">Web Audio API</span>
+        </div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-title">Backend & Data</div>
+        <div class="skill-items">
+          <span class="skill-tag">Firebase</span>
+          <span class="skill-tag">Supabase</span>
+          <span class="skill-tag">IndexedDB</span>
+          <span class="skill-tag">REST APIs</span>
+        </div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-title">Specializations</div>
+        <div class="skill-items">
+          <span class="skill-tag">Vanilla JS</span>
+          <span class="skill-tag">Real-time Sync</span>
+          <span class="skill-tag">AI/Chatbots</span>
+          <span class="skill-tag">Game Dev</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Featured Projects</h2>
+    <ul>
+      <li><strong>Toolify:</strong> All-in-one utility toolkit with QR generator, converters, and productivity tools</li>
+      <li><strong>Telebey:</strong> Real-time messaging app with Supabase, voice notes, and media uploads</li>
+      <li><strong>Neon District RPG:</strong> Cyberpunk dungeon crawler with procedural generation and skill trees</li>
+      <li><strong>OfficeSync:</strong> Smartboard notification system for school timetable synchronization</li>
+      <li><strong>Rain Simulation:</strong> Interactive canvas animation with physics and generated lofi audio</li>
+      <li><strong>LifeOS:</strong> Comprehensive life management suite for study, fitness, and personal tracking</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Education & Learning</h2>
+    <p>I'm passionate about sharing knowledge and helping others learn. I create educational materials including:</p>
+    <ul>
+      <li>Hindi language learning resources (muhavare, samanarthi sheets)</li>
+      <li>Science and Physics study guides for NCERT Class 9</li>
+      <li>Interactive study widgets and exam papers with answer keys</li>
+      <li>AI and emerging technology curriculum notes</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Open Source & Collaboration</h2>
+    <p>All my projects are available on GitHub under <a href="https://github.com/mohakdev1220" target="_blank" style="color: #1f2937; text-decoration: underline;">mohakdev1220</a>. I believe in transparent development and welcome feedback, suggestions, and collaboration.</p>
+  </div>
+
+  <div class="cta-section">
+    <h3>Let's Connect</h3>
+    <p>Interested in collaboration, have project ideas, or just want to chat about web development and learning? Reach out!</p>
+    <div>
+      <a href="https://github.com/mohakdev1220" target="_blank" class="btn btn-primary">Visit GitHub</a>
+      <a href="https://youtube.com/@MOHAKCHOUBEY" target="_blank" class="btn btn-secondary">Subscribe YouTube</a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-content">
+    <div class="footer-links">
+      <a href="index.html">Projects</a>
+      <a href="about.html">About</a>
+      <a href="https://mohakdev1220.github.io/websites_link/" target="_blank">My Websites</a>
+      <a href="https://github.com/mohakdev1220" target="_blank">GitHub</a>
+      <a href="https://youtube.com/@MOHAKCHOUBEY" target="_blank">YouTube</a>
+    </div>
+    <div class="footer-divider"></div>
+    <div class="footer-bottom">
+      <p>&copy; 2024 Mohak Choubey. Building experiments, learning in public, teaching with passion.</p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

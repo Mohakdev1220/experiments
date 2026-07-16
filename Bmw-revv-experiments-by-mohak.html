@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BMW M5 CS - Ultra Real V8 Audio Simulator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #020305;
+      --panel: #0a0d14;
+      --m-blue: #0066b2;
+      --m-purple: #10108a;
+      --m-red: #d12630;
+      --m-gold: #c5a059; /* M5 CS Bronze/Gold */
+      --text: #f1f5f9;
+      --border: rgba(255, 255, 255, 0.05);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+      min-height: 100vh;
+      overflow-y: auto;
+      padding: 30px 15px;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(197, 160, 89, 0.15), transparent 50%),
+        radial-gradient(circle at 50% 100%, rgba(209, 38, 48, 0.1), transparent 50%);
+    }
+
+    .wrapper {
+      max-width: 850px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .brand-header {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+
+    .bmw-badge-container {
+      display: flex; align-items: center; gap: 12px;
+    }
+
+    .m-stripes {
+      display: flex; height: 26px; width: 45px; transform: skewX(-20deg);
+      border-radius: 2px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    .m-stripes div:nth-child(1) { background: #00a2e2; width: 33.33%; }
+    .m-stripes div:nth-child(2) { background: #00387b; width: 33.33%; }
+    .m-stripes div:nth-child(3) { background: #d12630; width: 33.33%; }
+
+    .m5-logo-text {
+      font-family: 'Orbitron', sans-serif; font-size: 2.2rem; font-weight: 900;
+      color: #fff; letter-spacing: 2px;
+    }
+    .m5-logo-text span { color: var(--m-gold); }
+
+    .subtitle {
+      font-size: 0.75rem; text-transform: uppercase; letter-spacing: 6px;
+      color: var(--m-gold); font-weight: 900;
+    }
+
+    /* Ultra Real Ignition Button */
+    .audio-notice {
+      background: radial-gradient(circle, #2a0b0b 0%, #110202 100%);
+      border: 2px solid var(--m-red);
+      border-radius: 50px;
+      padding: 16px 40px;
+      font-size: 1.1rem; font-family: 'Orbitron', sans-serif;
+      text-transform: uppercase; letter-spacing: 3px; color: #ff4d4d;
+      text-align: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 25px rgba(209,38,48,0.4), inset 0 0 10px rgba(255,0,0,0.2);
+    }
+    .audio-notice:hover {
+      background: radial-gradient(circle, #3d0e0e 0%, #1a0303 100%);
+      transform: scale(1.05); color: #fff; box-shadow: 0 0 40px rgba(209,38,48,0.6);
+    }
+
+    /* CS Carbon Dashboard */
+    .dashboard {
+      background: linear-gradient(180deg, #0f131a 0%, #05070a 100%);
+      width: 100%; max-width: 780px;
+      border: 2px solid #1a202c; border-radius: 20px; padding: 30px;
+      display: grid; grid-template-columns: 1.5fr 1fr; gap: 25px;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.95);
+      position: relative;
+    }
+    /* Carbon Fiber Texture Overlay */
+    .dashboard::before {
+      content: ''; position: absolute; inset: 0; border-radius: 20px; opacity: 0.15; pointer-events: none;
+      background: repeating-linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000), repeating-linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000);
+      background-position: 0 0, 4px 4px; background-size: 8px 8px;
+    }
+
+    .gauge-column { display: flex; flex-direction: column; align-items: center; position: relative; }
+
+    .shift-flash-bar {
+      width: 100%; height: 8px; background: #0a0e14; border-radius: 4px; overflow: hidden;
+      margin-bottom: 10px; display: flex; gap: 4px; z-index: 2;
+    }
+    .shift-led { flex: 1; background: #111824; transition: background 0.03s; }
+
+    .gauge-container { position: relative; width: 280px; height: 280px; z-index: 2; }
+    .gauge-svg { transform: rotate(-90deg); width: 100%; height: 100%; filter: drop-shadow(0 0 10px rgba(209,38,48,0.2)); }
+    .gauge-track { fill: none; stroke: #121824; stroke-width: 16; stroke-linecap: round; }
+    .gauge-fill {
+      fill: none; stroke: url(#m5-grad); stroke-width: 18; stroke-linecap: round;
+      stroke-dasharray: 565; stroke-dashoffset: 565; transition: stroke-dashoffset 0.05s linear;
+    }
+
+    .gauge-info {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; margin-top: 15px;
+    }
+    .rpm-display { font-family: 'Orbitron', monospace; font-size: 3.5rem; font-weight: 900; color: #fff; }
+    .rpm-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 4px; color: #64748b; }
+
+    .hud-column {
+      display: flex; flex-direction: column; justify-content: space-between;
+      border-left: 1px solid rgba(255,255,255,0.05); padding-left: 25px; z-index: 2;
+    }
+    .hud-stat {
+      background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.03);
+      border-radius: 10px; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .hud-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px; color: #64748b; }
+    .hud-val { font-family: 'Orbitron', monospace; font-size: 1.4rem; font-weight: 700; color: #fff; }
+    .hud-val.speed { font-size: 2.2rem; color: #fff; text-shadow: 0 0 15px rgba(255, 255, 255, 0.3); }
+    .hud-val.gear { color: var(--m-red); font-weight: 900; font-size: 2rem; }
+
+    /* Steering & Pedals */
+    .controls-panel {
+      display: flex; justify-content: space-between; align-items: center;
+      width: 100%; max-width: 780px; gap: 20px;
+    }
+
+    .m-mode-panel { display: flex; flex-direction: column; gap: 12px; width: 180px; }
+    .m-btn {
+      font-family: 'Orbitron', sans-serif; padding: 14px; border-radius: 8px;
+      background: #0f131a; border: 2px solid #1e293b; color: #64748b;
+      cursor: pointer; font-weight: 900; text-transform: uppercase; font-size: 0.8rem;
+      transition: all 0.2s; letter-spacing: 1px;
+    }
+    .m-btn.active {
+      border-color: var(--m-red); color: #fff;
+      background: linear-gradient(135deg, #5c0f0f, #d12630);
+      box-shadow: 0 0 20px rgba(209, 38, 48, 0.4);
+    }
+
+    .pedal-box {
+      display: flex; align-items: flex-end; justify-content: center; gap: 35px;
+      background: #07090d; border: 2px solid var(--border); border-radius: 16px;
+      padding: 20px 40px; box-shadow: inset 0 20px 40px rgba(0,0,0,0.9); flex-grow: 1; height: 180px;
+    }
+    .pedal-wrapper { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .pedal-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px; color: #475569; font-weight: 900; }
+    .pedal {
+      background: linear-gradient(180deg, #94a3b8 0%, #334155 100%);
+      border: 2px solid #cbd5e1; border-top-width: 6px; border-radius: 4px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.6), inset 0 2px 5px rgba(255,255,255,0.4);
+      cursor: pointer; transform-origin: bottom center; transition: transform 0.05s ease; position: relative;
+    }
+    .pedal::after {
+      content: ''; position: absolute; top: 10%; left: 20%; width: 60%; height: 80%;
+      background: repeating-linear-gradient(180deg, #1e293b, #1e293b 4px, transparent 4px, transparent 8px);
+      border-radius: 2px; opacity: 0.7;
+    }
+    .pedal.gas { height: 120px; width: 45px; }
+    .pedal.brake { height: 90px; width: 80px; }
+    .pedal.active, .pedal:active { transform: scaleY(0.85) scaleX(0.98); border-color: var(--m-gold); }
+
+    .instructions { text-align: center; font-size: 0.85rem; color: #475569; line-height: 1.8; margin-top: 10px; }
+    .key-badge { background: #0f172a; padding: 3px 8px; border-radius: 4px; border: 1px solid #1e293b; color: #e2e8f0; font-family: monospace; }
+
+    @media (max-width: 768px) {
+      .dashboard { grid-template-columns: 1fr; padding: 20px; }
+      .hud-column { border-left: none; padding-left: 0; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px; gap: 10px; }
+      .controls-panel { flex-direction: column; }
+      .m-mode-panel { width: 100%; flex-direction: row; }
+      .m-btn { flex: 1; }
+      .pedal-box { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="brand-header">
+      <div class="bmw-badge-container">
+        <div class="m-stripes"><div></div><div></div><div></div></div>
+        <div class="m5-logo-text">M5 <span>CS</span></div>
+      </div>
+      <div class="subtitle">Akrapovič Titanium Exhaust System</div>
+    </div>
+
+    <div class="audio-notice" id="audioPrompt">
+      🔴 ENGINE START/STOP
+    </div>
+
+    <div class="dashboard">
+      <div class="gauge-column">
+        <div class="shift-flash-bar" id="shiftLedBar">
+          <div class="shift-led"></div><div class="shift-led"></div>
+          <div class="shift-led"></div><div class="shift-led"></div>
+          <div class="shift-led"></div><div class="shift-led"></div>
+          <div class="shift-led"></div><div class="shift-led"></div>
+        </div>
+        <div class="gauge-container">
+          <svg class="gauge-svg" viewBox="0 0 200 200">
+            <defs>
+              <linearGradient id="m5-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#cbd5e1" />
+                <stop offset="40%" stop-color="#0066b2" />
+                <stop offset="75%" stop-color="#c5a059" />
+                <stop offset="100%" stop-color="#d12630" />
+              </linearGradient>
+            </defs>
+            <path class="gauge-track" d="M 30,150 A 85,85 0 1,1 170,150" />
+            <path class="gauge-fill" id="gaugeProgress" d="M 30,150 A 85,85 0 1,1 170,150" />
+          </svg>
+          <div class="gauge-info">
+            <div class="rpm-display" id="rpmText">1000</div>
+            <div class="rpm-label">RPM</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-column">
+        <div class="hud-stat"><span class="hud-label">Speed</span><span class="hud-val speed" id="speedText">0</span></div>
+        <div class="hud-stat"><span class="hud-label">Gear</span><span class="hud-val gear" id="gearText">N</span></div>
+        <div class="hud-stat"><span class="hud-label">Turbo PSI</span><span class="hud-val" id="boostText" style="color:#38bdf8;">0.0</span></div>
+        <div class="hud-stat"><span class="hud-label">Exhaust Temp</span><span class="hud-val" id="tempText" style="color:#fb923c;">85°C</span></div>
+      </div>
+    </div>
+
+    <div class="controls-panel">
+      <div class="m-mode-panel">
+        <button class="m-btn active" id="m1Btn">Efficient (M1)</button>
+        <button class="m-btn" id="m2Btn">Sport Plus (M2)</button>
+      </div>
+      <div class="pedal-box">
+        <div class="pedal-wrapper"><div class="pedal brake" id="btnBrake"></div><div class="pedal-label">Brake</div></div>
+        <div class="pedal-wrapper"><div class="pedal gas" id="btnGas"></div><div class="pedal-label">Gas</div></div>
+      </div>
+    </div>
+
+    <div class="instructions">
+      Hold <span class="key-badge">W</span> to Revv. Let off at High RPM for <b>Turbo Stututu</b> & <b>Pops</b>.<br>
+      Use <span class="key-badge">S</span> to Brake. Select <b>Sport Plus</b> for aggressive Akrapovič cracks.
+    </div>
+  </div>
+
+  <script>
+    // System Physics & State
+    let currentRpm = 1000;
+    const idleRpm = 1000;
+    const maxRpm = 7600;
+    
+    let gasPressed = false;
+    let brakePressed = false;
+    let wasGasPressed = false; // Used for let-off triggers
+    let currentGear = 1;
+    let speed = 0;
+    let exhaustTemp = 85;
+    let isTrackMode = false;
+    let isShifting = false;
+
+    const shiftPoints = {
+      1: { up: 7000, drop: 4500 }, 2: { up: 7100, drop: 4800 }, 
+      3: { up: 7200, drop: 5000 }, 4: { up: 7200, drop: 5200 },
+      5: { up: 7200, drop: 5500 }, 6: { up: 7200, drop: 5800 }
+    };
+
+    // Advanced Audio Context & Nodes
+    let audioCtx = null;
+    let masterCompressor = null;
+    let engineMasterGain = null;
+    let exhaustResonator1 = null;
+    let exhaustResonator2 = null;
+    let distortionNode = null;
+    
+    // Engine Generators
+    let cylinders = [];
+    let subOsc = null;
+    let intakeNoise = null;
+    let intakeGain = null;
+
+    const ui = {
+      prompt: document.getElementById('audioPrompt'),
+      rpm: document.getElementById('rpmText'),
+      speed: document.getElementById('speedText'),
+      gear: document.getElementById('gearText'),
+      boost: document.getElementById('boostText'),
+      temp: document.getElementById('tempText'),
+      gauge: document.getElementById('gaugeProgress'),
+      btnGas: document.getElementById('btnGas'),
+      btnBrake: document.getElementById('btnBrake'),
+      m1: document.getElementById('m1Btn'),
+      m2: document.getElementById('m2Btn'),
+      leds: document.querySelectorAll('.shift-led')
+    };
+
+    // Initialize the God-Tier Engine Sound
+    function initAudio() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      // Master Chain: Compressor to prevent clipping and make it LOUD and PUNCHY
+      masterCompressor = audioCtx.createDynamicsCompressor();
+      masterCompressor.threshold.setValueAtTime(-15, audioCtx.currentTime);
+      masterCompressor.knee.setValueAtTime(10, audioCtx.currentTime);
+      masterCompressor.ratio.setValueAtTime(8, audioCtx.currentTime);
+      masterCompressor.attack.setValueAtTime(0.005, audioCtx.currentTime);
+      masterCompressor.release.setValueAtTime(0.1, audioCtx.currentTime);
+      masterCompressor.connect(audioCtx.destination);
+
+      engineMasterGain = audioCtx.createGain();
+      engineMasterGain.gain.setValueAtTime(0.35, audioCtx.currentTime); // Base Volume
+
+      // Acoustic Resonance (The "Hollow" V8 Sound Pipe)
+      exhaustResonator1 = audioCtx.createBiquadFilter();
+      exhaustResonator1.type = 'peaking';
+      exhaustResonator1.frequency.setValueAtTime(150, audioCtx.currentTime); // Low chest thump
+      exhaustResonator1.Q.setValueAtTime(2, audioCtx.currentTime);
+      exhaustResonator1.gain.setValueAtTime(12, audioCtx.currentTime);
+
+      exhaustResonator2 = audioCtx.createBiquadFilter();
+      exhaustResonator2.type = 'peaking';
+      exhaustResonator2.frequency.setValueAtTime(850, audioCtx.currentTime); // Metallic rasp
+      exhaustResonator2.Q.setValueAtTime(1.5, audioCtx.currentTime);
+      exhaustResonator2.gain.setValueAtTime(8, audioCtx.currentTime);
+
+      // Overdrive/Distortion for engine grit under load
+      distortionNode = audioCtx.createWaveShaper();
+      distortionNode.curve = makeDistortionCurve(20);
+      distortionNode.oversample = '4x';
+
+      // Routing the exhaust
+      distortionNode.connect(exhaustResonator1);
+      exhaustResonator1.connect(exhaustResonator2);
+      exhaustResonator2.connect(engineMasterGain);
+      engineMasterGain.connect(masterCompressor);
+
+      // Build 8-Cylinder Harmonics (Cross-plane V8 simulation)
+      // Using slight detunes and different waveforms to make it sound mechanical, not synthetic
+      const harmonicRatios = [1, 1.5, 2, 2.5, 3, 4]; 
+      const detunes = [-7, 5, -3, 6, -4, 2];
+
+      harmonicRatios.forEach((ratio, i) => {
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        
+        osc.type = i % 2 === 0 ? 'sawtooth' : 'triangle';
+        osc.detune.setValueAtTime(detunes[i], audioCtx.currentTime);
+        
+        // Lower harmonics are louder
+        gain.gain.setValueAtTime(0.1 / (i + 1), audioCtx.currentTime);
+        
+        osc.connect(gain);
+        gain.connect(distortionNode);
+        
+        cylinders.push({ osc, gain, ratio });
+        osc.start(0);
+      });
+
+      // Sub-Rumble (Exhaust drone)
+      subOsc = audioCtx.createOscillator();
+      subOsc.type = 'sine';
+      let subGain = audioCtx.createGain();
+      subGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      subOsc.connect(subGain);
+      subGain.connect(masterCompressor); // Bypass distortion for clean bass
+      subOsc.start(0);
+
+      // Intake Hiss (Air getting sucked into turbo)
+      const bufferSize = audioCtx.sampleRate * 2;
+      const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+      
+      intakeNoise = audioCtx.createBufferSource();
+      intakeNoise.buffer = noiseBuffer;
+      intakeNoise.loop = true;
+      
+      const intakeFilter = audioCtx.createBiquadFilter();
+      intakeFilter.type = 'highpass';
+      intakeFilter.frequency.setValueAtTime(3000, audioCtx.currentTime);
+      
+      intakeGain = audioCtx.createGain();
+      intakeGain.gain.setValueAtTime(0, audioCtx.currentTime); // Silent at idle
+      
+      intakeNoise.connect(intakeFilter);
+      intakeFilter.connect(intakeGain);
+      intakeGain.connect(masterCompressor);
+      intakeNoise.start(0);
+
+      ui.prompt.style.display = 'none';
+    }
+
+    function makeDistortionCurve(amount) {
+      const k = typeof amount === 'number' ? amount : 50,
+        n_samples = 44100,
+        curve = new Float32Array(n_samples),
+        deg = Math.PI / 180;
+      for (let i = 0; i < n_samples; ++i) {
+        const x = i * 2 / n_samples - 1;
+        curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+      }
+      return curve;
+    }
+
+    // --- Special FX Synthesizers --- //
+
+    // 1. Turbo Surge Flutter (Stututu)
+    function triggerTurboFlutter() {
+      if (!audioCtx || currentRpm < 3500) return;
+      
+      // The stututu is a rapid chopping of white noise/high freq sine
+      const flutterOsc = audioCtx.createOscillator();
+      flutterOsc.type = 'triangle';
+      flutterOsc.frequency.setValueAtTime(1400, audioCtx.currentTime); // Whistle pitch
+
+      const noiseFilter = audioCtx.createBiquadFilter();
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.setValueAtTime(1800, audioCtx.currentTime);
+      noiseFilter.Q.setValueAtTime(5, audioCtx.currentTime);
+
+      const tremoloOsc = audioCtx.createOscillator();
+      tremoloOsc.type = 'square';
+      tremoloOsc.frequency.setValueAtTime(14, audioCtx.currentTime); // Speed of the 'stu-tu-tu' chops
+
+      const tremoloGain = audioCtx.createGain();
+      tremoloGain.gain.setValueAtTime(0, audioCtx.currentTime); // Depth
+
+      const mainGain = audioCtx.createGain();
+      // Volume depends on how much boost we had (simulated by RPM)
+      const volume = isTrackMode ? 0.15 : 0.08;
+      mainGain.gain.setValueAtTime(volume, audioCtx.currentTime);
+      mainGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6); // Fade out flutter
+
+      tremoloOsc.connect(tremoloGain.gain);
+      flutterOsc.connect(noiseFilter);
+      noiseFilter.connect(tremoloGain);
+      tremoloGain.connect(mainGain);
+      mainGain.connect(masterCompressor);
+
+      flutterOsc.start(audioCtx.currentTime);
+      tremoloOsc.start(audioCtx.currentTime);
+      flutterOsc.stop(audioCtx.currentTime + 0.6);
+      tremoloOsc.stop(audioCtx.currentTime + 0.6);
+    }
+
+    // 2. Akrapovič Pops and Bangs (Overrun Crackles)
+    function triggerExhaustCrackle() {
+      if (!audioCtx || currentRpm < 3000) return;
+
+      // In Sport Plus (Track Mode), it pops more violently and frequently
+      const popCount = isTrackMode ? Math.floor(Math.random() * 5) + 3 : Math.floor(Math.random() * 2) + 1;
+      
+      for(let i=0; i<popCount; i++) {
+        // Randomize timing of pops
+        const delay = audioCtx.currentTime + (Math.random() * 0.8);
+        
+        const popOsc = audioCtx.createOscillator();
+        popOsc.type = 'sawtooth';
+        popOsc.frequency.setValueAtTime(40 + Math.random() * 60, delay); // Low frequency bang
+        
+        const popFilter = audioCtx.createBiquadFilter();
+        popFilter.type = 'lowpass';
+        popFilter.frequency.setValueAtTime(300 + Math.random() * 800, delay); // Random resonance
+        popFilter.Q.setValueAtTime(5, delay); // High Q makes it "snap"
+
+        const popGain = audioCtx.createGain();
+        const popVol = isTrackMode ? 0.6 : 0.25;
+        popGain.gain.setValueAtTime(popVol, delay);
+        popGain.gain.exponentialRampToValueAtTime(0.01, delay + 0.15); // Fast decay like a gunshot
+
+        popOsc.connect(popFilter);
+        popFilter.connect(popGain);
+        popGain.connect(masterCompressor);
+
+        popOsc.start(delay);
+        popOsc.stop(delay + 0.16);
+      }
+    }
+
+    // Shift Logic
+    function shiftGear(nextGear, targetRpm) {
+      isShifting = true;
+      currentGear = nextGear;
+      ui.gear.textContent = `M${currentGear}`;
+
+      if (audioCtx) {
+        // Aggressive DSG style fart/pop on upshift under load
+        if(gasPressed) triggerExhaustCrackle();
+        
+        engineMasterGain.gain.setValueAtTime(0.01, audioCtx.currentTime); // Cut ignition
+        setTimeout(() => {
+          engineMasterGain.gain.setTargetAtTime(0.35, audioCtx.currentTime, 0.03); // Slam it back
+          isShifting = false;
+        }, 100);
+      } else {
+        isShifting = false;
+      }
+      currentRpm = targetRpm;
+    }
+
+    // 60FPS Physics Engine Loop
+    function updatePhysics() {
+      // Check for Let-off (Gas was pressed, now it isn't)
+      if (wasGasPressed && !gasPressed) {
+        triggerTurboFlutter();
+        triggerExhaustCrackle();
+      }
+      wasGasPressed = gasPressed;
+
+      if (!isShifting) {
+        if (gasPressed) {
+          let accelBase = isTrackMode ? 210 : 160;
+          let accelFactor = accelBase - (currentGear * 12);
+          currentRpm += Math.max(60, accelFactor);
+          speed = (currentRpm * currentGear) / 125;
+          exhaustTemp = Math.min(650, exhaustTemp + 1.5);
+        } else {
+          currentRpm -= 130; // Heavy engine braking
+          speed = Math.max(0, speed - 1.2);
+          exhaustTemp = Math.max(85, exhaustTemp - 0.5);
+        }
+
+        if (brakePressed) {
+          currentRpm -= 450;
+          speed = Math.max(0, speed - 7.0);
+          if (currentRpm < 2800 && currentGear > 1) {
+            currentGear--;
+            ui.gear.textContent = `M${currentGear}`;
+            currentRpm = 4500;
+            if(isTrackMode) triggerExhaustCrackle(); // Rev-match downshift pop
+          }
+        }
+      }
+
+      if (currentRpm < idleRpm) { currentRpm = idleRpm; speed = 0; }
+
+      // Auto Upshift
+      if (gasPressed && !isShifting) {
+        const limits = shiftPoints[currentGear];
+        if (limits && currentRpm >= limits.up) shiftGear(currentGear + 1, limits.drop);
+      }
+
+      // Hard Limiter Bounce
+      if (currentRpm >= maxRpm) {
+        currentRpm = maxRpm - 350;
+        triggerExhaustCrackle(); // Machine gun limiter
+      }
+
+      // UI Updates
+      const progressRatio = (currentRpm - idleRpm) / (maxRpm - idleRpm);
+      ui.rpm.textContent = Math.round(currentRpm);
+      ui.speed.textContent = Math.round(speed);
+      ui.boost.textContent = gasPressed ? (progressRatio * (isTrackMode ? 22 : 16)).toFixed(1) : "0.0";
+      ui.temp.textContent = `${Math.round(exhaustTemp)}°C`;
+
+      ui.gauge.style.strokeDashoffset = 565 - (progressRatio * 400);
+
+      // LEDs
+      const ledCount = Math.floor(progressRatio * 8);
+      ui.leds.forEach((led, i) => {
+        if (i < ledCount) {
+          if (i < 4) led.style.background = '#0066b2';
+          else if (i < 6) led.style.background = '#c5a059';
+          else led.style.background = '#d12630';
+        } else led.style.background = '#111824';
+      });
+
+      // Update Audio Graph dynamically
+      if (audioCtx && audioCtx.state === 'running' && !isShifting) {
+        const baseFreq = (currentRpm / 60) * 4; // V8 Base
+
+        cylinders.forEach(cyl => {
+          cyl.osc.frequency.setTargetAtTime(baseFreq * cyl.ratio, audioCtx.currentTime, 0.05);
+        });
+        subOsc.frequency.setTargetAtTime(baseFreq * 0.5, audioCtx.currentTime, 0.05);
+
+        // Dynamic Overdrive (More throttle = more grit)
+        distortionNode.curve = makeDistortionCurve(gasPressed ? (isTrackMode ? 60 : 35) : 10);
+
+        // Exhaust opens up at higher RPMs
+        exhaustResonator2.frequency.setTargetAtTime(600 + (progressRatio * 800), audioCtx.currentTime, 0.1);
+
+        // Intake Hiss volume mapped to throttle and RPM
+        if (gasPressed) {
+          intakeGain.gain.setTargetAtTime(0.02 + (progressRatio * 0.06), audioCtx.currentTime, 0.1);
+        } else {
+          intakeGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+        }
+      }
+
+      requestAnimationFrame(updatePhysics);
+    }
+
+    // Input Handlers
+    function setGas(state) {
+      gasPressed = state;
+      state ? ui.btnGas.classList.add('active') : ui.btnGas.classList.remove('active');
+      if(state) initAudio();
+    }
+    function setBrake(state) {
+      brakePressed = state;
+      state ? ui.btnBrake.classList.add('active') : ui.btnBrake.classList.remove('active');
+      if(state) initAudio();
+    }
+
+    ui.prompt.addEventListener('click', initAudio);
+    ui.btnGas.addEventListener('mousedown', () => setGas(true));
+    ui.btnBrake.addEventListener('mousedown', () => setBrake(true));
+    document.addEventListener('mouseup', () => { setGas(false); setBrake(false); });
+    
+    // Touch support
+    ui.btnGas.addEventListener('touchstart', (e) => { e.preventDefault(); setGas(true); });
+    ui.btnBrake.addEventListener('touchstart', (e) => { e.preventDefault(); setBrake(true); });
+    document.addEventListener('touchend', () => { setGas(false); setBrake(false); });
+
+    ui.m1.addEventListener('click', () => { isTrackMode = false; ui.m1.classList.add('active'); ui.m2.classList.remove('active'); });
+    ui.m2.addEventListener('click', () => { isTrackMode = true; ui.m2.classList.add('active'); ui.m1.classList.remove('active'); });
+
+    document.addEventListener('keydown', (e) => {
+      let k = e.key.toLowerCase();
+      if (k === 'w' || k === 'arrowup') setGas(true);
+      if (k === 's' || k === 'arrowdown') setBrake(true);
+    });
+    document.addEventListener('keyup', (e) => {
+      let k = e.key.toLowerCase();
+      if (k === 'w' || k === 'arrowup') setGas(false);
+      if (k === 's' || k === 'arrowdown') setBrake(false);
+    });
+
+    updatePhysics();
+  </script>
+</body>
+</html>

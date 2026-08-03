@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mood Mirror — Toolify</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --border: #1e1e2e;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --accent: #7c6aff;
+    --accent2: #ff6ab0;
+    --happy: #ffd166;
+    --sad: #5bc4ff;
+    --angry: #ff5e5e;
+    --fearful: #9b6aff;
+    --disgusted: #6bffb8;
+    --surprised: #ff9f43;
+    --neutral: #a0a0b8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* NAV */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+  .logo { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; color: #fff; }
+  .logo span { color: var(--accent); }
+  .tool-badge {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+
+  /* MAIN */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 0;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 24px;
+    width: 100%;
+    gap: 28px;
+  }
+
+  /* LEFT PANEL */
+  .cam-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .cam-wrap {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    aspect-ratio: 4/3;
+  }
+
+  #video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transform: scaleX(-1);
+  }
+
+  #overlay {
+    position: absolute;
+    inset: 0;
+    transform: scaleX(-1);
+  }
+
+  .cam-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--muted);
+  }
+  .cam-placeholder svg { opacity: 0.4; }
+  .cam-placeholder p { font-size: 14px; }
+
+  /* mood ring glow on border */
+  .cam-wrap.active { border-color: transparent; }
+  .cam-wrap.active::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 22px;
+    background: var(--mood-color, var(--accent));
+    z-index: -1;
+    opacity: 0.6;
+    filter: blur(8px);
+    transition: background 0.6s ease;
+  }
+
+  /* CONTROLS */
+  .controls { display: flex; gap: 12px; }
+
+  .btn {
+    flex: 1;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+  }
+  .btn-primary:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* STATUS */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+    flex-shrink: 0;
+  }
+  .status-dot.live { background: #4ade80; box-shadow: 0 0 6px #4ade80; animation: pulse 2s infinite; }
+  .status-dot.loading { background: var(--accent); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* RIGHT PANEL */
+  .info-panel { display: flex; flex-direction: column; gap: 20px; }
+
+  /* MOOD CARD */
+  .mood-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    text-align: center;
+    transition: border-color 0.4s;
+  }
+
+  .mood-emoji {
+    font-size: 72px;
+    line-height: 1;
+    margin-bottom: 12px;
+    display: block;
+    transition: transform 0.3s;
+    filter: drop-shadow(0 0 20px var(--mood-color, transparent));
+  }
+
+  .mood-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--mood-color, var(--muted));
+    transition: color 0.4s;
+    text-transform: capitalize;
+  }
+
+  .mood-confidence {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .mood-message {
+    margin-top: 14px;
+    padding: 12px 16px;
+    background: rgba(124,106,255,0.08);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 48px;
+    border: 1px solid rgba(124,106,255,0.15);
+    transition: all 0.4s;
+  }
+
+  /* EMOTION BARS */
+  .emotions-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px;
+  }
+  .card-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+
+  .emotion-row { margin-bottom: 10px; }
+  .emotion-meta { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; }
+  .emotion-name { color: var(--text); text-transform: capitalize; font-weight: 500; }
+  .emotion-pct { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .bar-track {
+    height: 5px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+
+  /* FACE INFO */
+  .face-info-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .info-item { }
+  .info-key { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+  .info-val { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600; color: var(--text); }
+
+  /* HISTORY */
+  .history-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px;
+  }
+  .history-strip {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .history-chip {
+    font-size: 20px;
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    background: var(--border);
+    cursor: default;
+    position: relative;
+    transition: transform 0.2s;
+  }
+  .history-chip:hover { transform: scale(1.2); }
+  .history-chip::after {
+    content: attr(data-time);
+    position: absolute;
+    bottom: -20px;
+    font-size: 9px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* SCREENSHOT BTN */
+  #snapBtn {
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    font-size: 13px;
+  }
+  #snapBtn:hover { border-color: var(--accent); color: var(--accent); background: rgba(124,106,255,0.06); }
+
+  /* LOADING OVERLAY */
+  #loadingOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,15,0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    gap: 16px;
+  }
+  .loader-ring {
+    width: 56px; height: 56px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loadingOverlay p { color: var(--muted); font-size: 14px; }
+
+  /* TOAST */
+  #toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #1e1e2e;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    transition: transform 0.3s;
+    z-index: 300;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 768px) {
+    main { grid-template-columns: 1fr; padding: 16px; }
+    .face-info-card { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="loader-ring"></div>
+  <p id="loadMsg">Loading AI models…</p>
+</div>
+
+<nav>
+  <div class="logo">Tool<span>ify</span></div>
+  <span class="tool-badge">✨ Mood Mirror</span>
+</nav>
+
+<main>
+  <!-- LEFT -->
+  <div class="cam-panel">
+    <div class="cam-wrap" id="camWrap">
+      <video id="video" autoplay muted playsinline></video>
+      <canvas id="overlay"></canvas>
+      <div class="cam-placeholder" id="placeholder">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.888L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
+        </svg>
+        <p>Camera off</p>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Ready — click Start to begin</span>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="startBtn">▶ Start Camera</button>
+      <button class="btn btn-secondary" id="stopBtn" disabled>■ Stop</button>
+      <button class="btn btn-secondary" id="snapBtn" disabled>📸 Snap</button>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="info-panel">
+    <!-- MAIN MOOD -->
+    <div class="mood-card" id="moodCard">
+      <span class="mood-emoji" id="moodEmoji">🪞</span>
+      <div class="mood-label" id="moodLabel">Waiting…</div>
+      <div class="mood-confidence" id="moodConf">Point your face at the camera</div>
+      <div class="mood-message" id="moodMsg">Your mood will appear here once detection starts.</div>
+    </div>
+
+    <!-- EMOTION BARS -->
+    <div class="emotions-card">
+      <div class="card-title">Emotion Breakdown</div>
+      <div id="emotionBars"></div>
+    </div>
+
+    <!-- FACE INFO -->
+    <div class="face-info-card">
+      <div class="info-item">
+        <div class="info-key">Est. Age</div>
+        <div class="info-val" id="infoAge">—</div>
+      </div>
+      <div class="info-item">
+        <div class="info-key">Gender</div>
+        <div class="info-val" id="infoGender">—</div>
+      </div>
+      <div class="info-item">
+        <div class="info-key">Faces</div>
+        <div class="info-val" id="infoFaces">—</div>
+      </div>
+      <div class="info-item">
+        <div class="info-key">FPS</div>
+        <div class="info-val" id="infoFps">—</div>
+      </div>
+    </div>
+
+    <!-- MOOD HISTORY -->
+    <div class="history-card">
+      <div class="card-title">Mood History</div>
+      <div class="history-strip" id="historyStrip">
+        <span style="font-size:12px;color:var(--muted)">Your recent moods will appear here…</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
+
+const MOODS = {
+  happy:     { emoji:'😄', color:'#ffd166', msg:"You're radiating good energy! Keep that vibe going 🌟" },
+  sad:       { emoji:'😢', color:'#5bc4ff', msg:"It's okay to feel low. Take a breath, things pass 💙" },
+  angry:     { emoji:'😠', color:'#ff5e5e', msg:"Channel that fire into something productive 🔥" },
+  fearful:   { emoji:'😨', color:'#9b6aff', msg:"You've got this. Face it one step at a time 💜" },
+  disgusted: { emoji:'🤢', color:'#6bffb8', msg:"Something bothering you? Step away and reset 🌿" },
+  surprised: { emoji:'😲', color:'#ff9f43', msg:"Something caught you off guard! Stay curious ✨" },
+  neutral:   { emoji:'😐', color:'#a0a0b8', msg:"Calm and collected — a great state to work in 🧘" },
+};
+
+const EMOTION_ORDER = ['happy','neutral','sad','surprised','fearful','angry','disgusted'];
+const COLORS = { happy:'#ffd166', neutral:'#a0a0b8', sad:'#5bc4ff', surprised:'#ff9f43', fearful:'#9b6aff', angry:'#ff5e5e', disgusted:'#6bffb8' };
+
+let stream = null, running = false, animFrame = null;
+let lastHistoryMood = null, historyCount = 0;
+let fpsTimes = [], fpsCounter = 0, lastFpsUpdate = 0;
+const moodHistory = [];
+
+const video = document.getElementById('video');
+const canvas = document.getElementById('overlay');
+const ctx = canvas.getContext('2d');
+
+// Build emotion bars initially
+function buildBars() {
+  const container = document.getElementById('emotionBars');
+  container.innerHTML = '';
+  EMOTION_ORDER.forEach(e => {
+    container.innerHTML += `
+    <div class="emotion-row" id="row-${e}">
+      <div class="emotion-meta">
+        <span class="emotion-name">${e}</span>
+        <span class="emotion-pct" id="pct-${e}">0%</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="bar-${e}" style="width:0%;background:${COLORS[e]}"></div></div>
+    </div>`;
+  });
+}
+buildBars();
+
+async function loadModels() {
+  setStatus('loading', 'Loading AI models (first time only)…');
+  await Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+    faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+    faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL),
+  ]);
+  document.getElementById('loadingOverlay').style.display = 'none';
+  setStatus('', 'Models loaded — click Start');
+}
+
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width:640, height:480, facingMode:'user' } });
+    video.srcObject = stream;
+    document.getElementById('placeholder').style.display = 'none';
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('stopBtn').disabled = false;
+    document.getElementById('snapBtn').disabled = false;
+    document.getElementById('camWrap').classList.add('active');
+    running = true;
+    setStatus('live', 'Live — detecting…');
+    video.addEventListener('playing', () => { syncCanvas(); detect(); }, { once: true });
+  } catch(e) {
+    showToast('Camera access denied ❌');
+    setStatus('', 'Camera blocked — check permissions');
+  }
+}
+
+function stopCamera() {
+  running = false;
+  cancelAnimationFrame(animFrame);
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null;
+  video.srcObject = null;
+  document.getElementById('placeholder').style.display = 'flex';
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  document.getElementById('snapBtn').disabled = true;
+  document.getElementById('camWrap').classList.remove('active');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  setStatus('', 'Stopped');
+  resetUI();
+}
+
+function syncCanvas() {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+}
+
+async function detect() {
+  if (!running) return;
+  const t0 = performance.now();
+
+  const results = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize:320, scoreThreshold:0.5 }))
+    .withFaceExpressions()
+    .withAgeAndGender();
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (results.length > 0) {
+    const d = results[0]; // primary face
+    drawFaceBox(d);
+    updateMoodUI(d.expressions, d.age, d.gender, d.genderProbability);
+    document.getElementById('infoFaces').textContent = results.length;
+    // draw extra faces faintly
+    results.slice(1).forEach(f => drawFaceBox(f, true));
+  } else {
+    document.getElementById('infoFaces').textContent = '0';
+  }
+
+  // FPS
+  const now = performance.now();
+  fpsTimes.push(now);
+  fpsTimes = fpsTimes.filter(t => now - t < 1000);
+  if (now - lastFpsUpdate > 500) {
+    document.getElementById('infoFps').textContent = fpsTimes.length;
+    lastFpsUpdate = now;
+  }
+
+  animFrame = requestAnimationFrame(detect);
+}
+
+function drawFaceBox(d, secondary=false) {
+  const box = d.detection.box;
+  const expr = d.expressions;
+  const top = Object.entries(expr).sort((a,b)=>b[1]-a[1])[0][0];
+  const color = COLORS[top] || '#fff';
+
+  ctx.save();
+  ctx.strokeStyle = secondary ? 'rgba(255,255,255,0.3)' : color;
+  ctx.lineWidth = secondary ? 1.5 : 2.5;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = secondary ? 0 : 10;
+
+  // corner brackets instead of full rect
+  const bx=box.x, by=box.y, bw=box.width, bh=box.height, cs=20;
+  [[bx,by,1,1],[bx+bw,by,-1,1],[bx,by+bh,1,-1],[bx+bw,by+bh,-1,-1]].forEach(([x,y,sx,sy])=>{
+    ctx.beginPath(); ctx.moveTo(x+sx*cs,y); ctx.lineTo(x,y); ctx.lineTo(x,y+sy*cs); ctx.stroke();
+  });
+
+  if (!secondary) {
+    // label
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = color + 'dd';
+    const label = `${top} ${Math.round(expr[top]*100)}%`;
+    ctx.font = 'bold 13px Inter, sans-serif';
+    const tw = ctx.measureText(label).width;
+    ctx.fillRect(bx, by - 26, tw + 16, 22);
+    ctx.fillStyle = '#000';
+    ctx.fillText(label, bx + 8, by - 9);
+  }
+  ctx.restore();
+}
+
+function updateMoodUI(expr, age, gender, genderProb) {
+  const sorted = Object.entries(expr).sort((a,b)=>b[1]-a[1]);
+  const [topMood, topScore] = sorted[0];
+  const mood = MOODS[topMood] || MOODS.neutral;
+
+  // main mood
+  document.getElementById('moodEmoji').textContent = mood.emoji;
+  document.getElementById('moodLabel').textContent = topMood;
+  document.getElementById('moodLabel').style.color = mood.color;
+  document.getElementById('moodConf').textContent = `${Math.round(topScore*100)}% confidence`;
+  document.getElementById('moodMsg').textContent = mood.msg;
+  document.getElementById('moodCard').style.borderColor = mood.color + '44';
+  document.documentElement.style.setProperty('--mood-color', mood.color);
+
+  // bars
+  EMOTION_ORDER.forEach(e => {
+    const v = (expr[e] || 0) * 100;
+    document.getElementById(`bar-${e}`).style.width = v.toFixed(1) + '%';
+    document.getElementById(`pct-${e}`).textContent = v.toFixed(0) + '%';
+  });
+
+  // face info
+  document.getElementById('infoAge').textContent = Math.round(age);
+  document.getElementById('infoGender').textContent = gender.charAt(0).toUpperCase() + gender.slice(1);
+
+  // history — log every 3s if mood changed
+  const now = Date.now();
+  if (topMood !== lastHistoryMood || now - historyCount > 3000) {
+    lastHistoryMood = topMood;
+    historyCount = now;
+    addHistory(topMood, mood.emoji);
+  }
+}
+
+function addHistory(mood, emoji) {
+  const strip = document.getElementById('historyStrip');
+  const time = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  moodHistory.unshift({ mood, emoji, time });
+  if (moodHistory.length > 20) moodHistory.pop();
+
+  // clear placeholder
+  if (strip.querySelector('span')) strip.innerHTML = '';
+
+  const chip = document.createElement('div');
+  chip.className = 'history-chip';
+  chip.textContent = emoji;
+  chip.dataset.time = time;
+  chip.title = `${mood} at ${time}`;
+  strip.prepend(chip);
+
+  // keep max 20 chips
+  while (strip.children.length > 20) strip.removeChild(strip.lastChild);
+}
+
+function resetUI() {
+  document.getElementById('moodEmoji').textContent = '🪞';
+  document.getElementById('moodLabel').textContent = 'Waiting…';
+  document.getElementById('moodLabel').style.color = 'var(--muted)';
+  document.getElementById('moodConf').textContent = 'Point your face at the camera';
+  document.getElementById('moodMsg').textContent = 'Your mood will appear here once detection starts.';
+  document.getElementById('infoAge').textContent = '—';
+  document.getElementById('infoGender').textContent = '—';
+  document.getElementById('infoFaces').textContent = '—';
+  document.getElementById('infoFps').textContent = '—';
+  document.documentElement.style.removeProperty('--mood-color');
+  EMOTION_ORDER.forEach(e => {
+    document.getElementById(`bar-${e}`).style.width = '0%';
+    document.getElementById(`pct-${e}`).textContent = '0%';
+  });
+}
+
+function snapshot() {
+  const snap = document.createElement('canvas');
+  snap.width = video.videoWidth;
+  snap.height = video.videoHeight;
+  const sc = snap.getContext('2d');
+  sc.save(); sc.scale(-1,1); sc.drawImage(video,-snap.width,0); sc.restore();
+  sc.drawImage(canvas, 0, 0);
+  const a = document.createElement('a');
+  a.href = snap.toDataURL('image/png');
+  a.download = `mood-mirror-${Date.now()}.png`;
+  a.click();
+  showToast('Snapshot saved 📸');
+}
+
+function setStatus(type, text) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot' + (type ? ' ' + type : '');
+  document.getElementById('statusText').textContent = text;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Events
+document.getElementById('startBtn').addEventListener('click', startCamera);
+document.getElementById('stopBtn').addEventListener('click', stopCamera);
+document.getElementById('snapBtn').addEventListener('click', snapshot);
+
+// Boot
+window.addEventListener('load', loadModels);
+</script>
+</body>
+</html>

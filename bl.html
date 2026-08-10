@@ -1,0 +1,157 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BLE Two-Way Messenger</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { max-width: 550px; margin: 30px auto; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+    h2 { margin-top: 0; color: #1a1a1a; }
+    .field { margin-bottom: 12px; }
+    label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; color: #444; }
+    input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; }
+    button { width: 100%; padding: 12px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; }
+    .btn-connect { background: #2563eb; color: white; margin-bottom: 15px; }
+    .btn-send { background: #059669; color: white; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    #status { margin-bottom: 15px; padding: 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; }
+    .disconnected { background: #fef2f2; color: #dc2626; }
+    .connected { background: #ecfdf5; color: #059669; }
+    
+    /* Terminal Console Style */
+    #terminal {
+      height: 220px; background: #0f172a; color: #38bdf8; padding: 12px;
+      border-radius: 8px; overflow-y: auto; font-family: monospace; font-size: 0.85rem;
+      margin-bottom: 15px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .msg-tx { color: #4ade80; } /* Sent message green */
+    .msg-rx { color: #facc15; } /* Received message yellow */
+    .msg-sys { color: #94a3b8; } /* System log grey */
+  </style>
+</head>
+<body>
+
+  <h2>BLE Two-Way Messenger</h2>
+
+  <div class="field">
+    <label for="serviceUuid">Service UUID</label>
+    <input type="text" id="serviceUuid" value="0000ffe0-0000-1000-8000-00805f9b34fb">
+  </div>
+
+  <div class="field">
+    <label for="charUuid">Characteristic UUID (Read/Write/Notify)</label>
+    <input type="text" id="charUuid" value="0000ffe1-0000-1000-8000-00805f9b34fb">
+  </div>
+
+  <button class="btn-connect" id="connectBtn" onclick="connectBluetooth()">Connect Bluetooth Device</button>
+  <div id="status" class="disconnected">Status: Disconnected</div>
+
+  <!-- Terminal window showing incoming and outgoing history -->
+  <label>Chat Log</label>
+  <div id="terminal">
+    <div class="msg-sys">[System] Ready to connect...</div>
+  </div>
+
+  <div class="field">
+    <input type="text" id="message" placeholder="Type message to send..." disabled onkeydown="if(event.key === 'Enter') sendMessage()">
+  </div>
+
+  <button class="btn-send" id="sendBtn" onclick="sendMessage()" disabled>Send Message</button>
+
+  <script>
+    let bluetoothDevice = null;
+    let targetCharacteristic = null;
+
+    function log(msg, type = 'sys') {
+      const terminal = document.getElementById('terminal');
+      const entry = document.createElement('div');
+      entry.className = `msg-${type}`;
+      entry.textContent = msg;
+      terminal.appendChild(entry);
+      terminal.scrollTop = terminal.scrollHeight; // Auto-scroll to bottom
+    }
+
+    async function connectBluetooth() {
+      const serviceUuid = document.getElementById('serviceUuid').value.trim().toLowerCase();
+      const charUuid = document.getElementById('charUuid').value.trim().toLowerCase();
+      const statusDiv = document.getElementById('status');
+
+      try {
+        log("[System] Requesting Bluetooth device...");
+        
+        bluetoothDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ services: [serviceUuid] }]
+        });
+
+        log(`[System] Connecting to GATT server (${bluetoothDevice.name || 'Device'})...`);
+        const server = await bluetoothDevice.gatt.connect();
+
+        log("[System] Fetching Service...");
+        const service = await server.getPrimaryService(serviceUuid);
+
+        log("[System] Fetching Characteristic...");
+        targetCharacteristic = await service.getCharacteristic(charUuid);
+
+        // --- SUBSCRIBE TO INCOMING NOTIFICATIONS ---
+        log("[System] Subscribing to incoming messages...");
+        await targetCharacteristic.startNotifications();
+        targetCharacteristic.addEventListener('characteristicvaluechanged', handleIncomingData);
+
+        // UI state update
+        statusDiv.textContent = `Status: Connected to ${bluetoothDevice.name || 'Device'}`;
+        statusDiv.className = "connected";
+        document.getElementById('message').disabled = false;
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('connectBtn').disabled = true;
+
+        bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+        log("[System] Connected and listening for messages!", "sys");
+
+      } catch (error) {
+        log(`[Error] ${error.message}`, "sys");
+        statusDiv.textContent = `Error: ${error.message}`;
+        statusDiv.className = "disconnected";
+      }
+    }
+
+    // --- RECEIVE MESSAGES ---
+    function handleIncomingData(event) {
+      const value = event.target.value;
+      const decoder = new TextDecoder('utf-8');
+      const text = decoder.decode(value);
+      log(`Received: ${text}`, "rx");
+    }
+
+    // --- SEND MESSAGES ---
+    async function sendMessage() {
+      const messageInput = document.getElementById('message');
+      const text = messageInput.value.trim();
+
+      if (!targetCharacteristic || !text) return;
+
+      try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(text);
+
+        await targetCharacteristic.writeValueWithResponse(data);
+        log(`Sent: ${text}`, "tx");
+        messageInput.value = '';
+      } catch (error) {
+        log(`[Send Error] ${error.message}`, "sys");
+      }
+    }
+
+    function onDisconnected() {
+      const statusDiv = document.getElementById('status');
+      statusDiv.textContent = "Status: Device disconnected";
+      statusDiv.className = "disconnected";
+      document.getElementById('message').disabled = true;
+      document.getElementById('sendBtn').disabled = true;
+      document.getElementById('connectBtn').disabled = false;
+      log("[System] Device disconnected.", "sys");
+    }
+  </script>
+</body>
+</html>

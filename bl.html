@@ -3,234 +3,165 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BLE Universal Terminal</title>
+  <title>Laptop <-> Mobile Live Chat</title>
+  <!-- PeerJS Library for Browser-to-Browser Connection -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { max-width: 600px; margin: 15px auto; padding: 20px; background: #f8fafc; color: #0f172a; }
-    .card { background: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
-    h2 { margin-top: 0; font-size: 1.25rem; }
+    * { box-sizing: border-box; font-family: -apple-system, system-ui, sans-serif; }
+    body { max-width: 500px; margin: 20px auto; padding: 15px; background: #f1f5f9; }
+    .card { background: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    h2 { margin-top: 0; color: #0f172a; text-align: center; }
+    
+    .id-box { background: #e2e8f0; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 15px; }
+    .id-box strong { font-size: 1.2rem; color: #2563eb; letter-spacing: 1px; }
+
     .field { margin-bottom: 12px; }
-    label { display: block; font-weight: 600; font-size: 0.8rem; margin-bottom: 4px; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
-    input, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; background: #fff; }
-    button { width: 100%; padding: 12px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s ease; }
-    .btn-connect { background: #2563eb; color: white; margin: 10px 0; }
-    .btn-connect:hover { background: #1d4ed8; }
+    label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; color: #475569; }
+    input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; }
+    
+    button { width: 100%; padding: 12px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; }
+    .btn-connect { background: #2563eb; color: white; margin-bottom: 15px; }
     .btn-send { background: #10b981; color: white; }
-    .btn-send:hover { background: #059669; }
     button:disabled { background: #cbd5e1; cursor: not-allowed; }
-    #status { padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; margin-bottom: 12px; }
+
+    #status { padding: 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; text-align: center; margin-bottom: 12px; }
     .disconnected { background: #fef2f2; color: #ef4444; }
     .connected { background: #ecfdf5; color: #10b981; }
-    
-    /* Terminal Console */
-    #terminal {
-      height: 250px; background: #0f172a; color: #38bdf8; padding: 12px;
-      border-radius: 8px; overflow-y: auto; font-family: "Courier New", monospace; font-size: 0.85rem;
-      margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; border: 1px solid #1e293b;
+
+    /* Chat Window */
+    #chat-box {
+      height: 250px; background: #0f172a; border-radius: 8px; padding: 12px;
+      overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;
     }
-    .msg-tx { color: #4ade80; } /* Sent */
-    .msg-rx { color: #facc15; } /* Received */
-    .msg-err { color: #f87171; } /* Error */
-    .msg-sys { color: #94a3b8; } /* System */
-    .options-row { display: flex; gap: 15px; align-items: center; font-size: 0.85rem; margin-bottom: 12px; color: #475569; }
-    .options-row input { width: auto; }
+    .msg { padding: 8px 12px; border-radius: 6px; max-width: 80%; font-size: 0.9rem; word-break: break-word; }
+    .msg-me { background: #2563eb; color: white; align-self: flex-end; }
+    .msg-partner { background: #334155; color: #f8fafc; align-self: flex-start; }
+    .msg-sys { color: #94a3b8; font-size: 0.75rem; text-align: center; align-self: center; }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <h2>BLE Universal Terminal</h2>
+    <h2>Laptop <-> Mobile Chat</h2>
 
-    <div id="status" class="disconnected">Status: Disconnected</div>
+    <!-- Connection Status -->
+    <div id="status" class="disconnected">Status: Generating ID...</div>
 
+    <!-- Your Generated Peer ID -->
+    <div class="id-box">
+      <span>Your Device ID:</span><br>
+      <strong id="my-id">...</strong>
+    </div>
+
+    <!-- Connect to Partner -->
     <div class="field">
-      <label for="preset">Preset Hardware Configuration</label>
-      <select id="preset" onchange="applyPreset()">
-        <option value="hm10">HM-10 / JDY-31 / CC2541 (Single Characteristic)</option>
-        <option value="nordic">ESP32 / Nordic UART NUS (Separate TX/RX)</option>
-        <option value="custom">Custom UUIDs</option>
-      </select>
+      <label for="peer-id-input">Enter Partner's Device ID:</label>
+      <input type="text" id="peer-id-input" placeholder="Paste ID here...">
+    </div>
+    <button class="btn-connect" id="connect-btn" onclick="connectToPeer()">Connect Devices</button>
+
+    <!-- Chat Messages Window -->
+    <div id="chat-box">
+      <div class="msg msg-sys">Open this same page on both Laptop and Mobile.</div>
     </div>
 
+    <!-- Message Input -->
     <div class="field">
-      <label for="serviceUuid">Service UUID</label>
-      <input type="text" id="serviceUuid" value="0000ffe0-0000-1000-8000-00805f9b34fb">
+      <input type="text" id="message-input" placeholder="Type message..." disabled onkeydown="if(event.key === 'Enter') sendMessage()">
     </div>
-
-    <div class="field">
-      <label for="writeCharUuid">Write Characteristic (Phone &rarr; BLE)</label>
-      <input type="text" id="writeCharUuid" value="0000ffe1-0000-1000-8000-00805f9b34fb">
-    </div>
-
-    <div class="field">
-      <label for="notifyCharUuid">Notify Characteristic (BLE &rarr; Phone)</label>
-      <input type="text" id="notifyCharUuid" value="0000ffe1-0000-1000-8000-00805f9b34fb" placeholder="Leave same as write if single char">
-    </div>
-
-    <button class="btn-connect" id="connectBtn" onclick="connectBluetooth()">Connect BLE Device</button>
-
-    <label>Live Console Log</label>
-    <div id="terminal">
-      <div class="msg-sys">[System] Ready to scan...</div>
-    </div>
-
-    <div class="field">
-      <input type="text" id="message" placeholder="Type message..." disabled onkeydown="if(event.key === 'Enter') sendMessage()">
-    </div>
-
-    <div class="options-row">
-      <label><input type="checkbox" id="addNewline" checked> Append <code>\n</code></label>
-      <label><input type="checkbox" id="addCR"> Append <code>\r</code></label>
-    </div>
-
-    <button class="btn-send" id="sendBtn" onclick="sendMessage()" disabled>Send Message</button>
+    <button class="btn-send" id="send-btn" onclick="sendMessage()" disabled>Send Message</button>
   </div>
 
   <script>
-    let bluetoothDevice = null;
-    let writeCharacteristic = null;
-    let notifyCharacteristic = null;
+    let peer = null;
+    let conn = null;
 
-    // Hardware UUID Presets
-    const presets = {
-      hm10: {
-        service: "0000ffe0-0000-1000-8000-00805f9b34fb",
-        write: "0000ffe1-0000-1000-8000-00805f9b34fb",
-        notify: "0000ffe1-0000-1000-8000-00805f9b34fb"
-      },
-      nordic: {
-        service: "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
-        write: "6e400002-b5a3-f393-e0a9-e50e24dcca9e", // Phone writes to RX
-        notify: "6e400003-b5a3-f393-e0a9-e50e24dcca9e" // Phone listens to TX
-      }
-    };
+    // Generate random 4-digit code for easy typing
+    const randomId = Math.floor(1000 + Math.random() * 9000).toString();
 
-    function applyPreset() {
-      const selected = document.getElementById('preset').value;
-      if (presets[selected]) {
-        document.getElementById('serviceUuid').value = presets[selected].service;
-        document.getElementById('writeCharUuid').value = presets[selected].write;
-        document.getElementById('notifyCharUuid').value = presets[selected].notify;
-      }
+    // Initialize PeerJS Connection
+    peer = new Peer(randomId);
+
+    peer.on('open', (id) => {
+      document.getElementById('my-id').textContent = id;
+      updateStatus("Disconnected (Ready to connect)", "disconnected");
+    });
+
+    // Listen for incoming connection from other device
+    peer.on('connection', (incomingConn) => {
+      conn = incomingConn;
+      setupConnectionHandlers();
+    });
+
+    peer.on('error', (err) => {
+      logSystem(`Error: ${err.type}`);
+    });
+
+    function connectToPeer() {
+      const targetId = document.getElementById('peer-id-input').value.trim();
+      if (!targetId) return;
+
+      updateStatus("Connecting...", "disconnected");
+      conn = peer.connect(targetId);
+      setupConnectionHandlers();
     }
 
-    function log(msg, type = 'sys') {
-      const terminal = document.getElementById('terminal');
-      const time = new Date().toLocaleTimeString().split(' ')[0];
-      const entry = document.createElement('div');
-      entry.className = `msg-${type}`;
-      entry.textContent = `[${time}] ${msg}`;
-      terminal.appendChild(entry);
-      terminal.scrollTop = terminal.scrollHeight;
+    function setupConnectionHandlers() {
+      conn.on('open', () => {
+        updateStatus("Connected! Live Messaging Active", "connected");
+        document.getElementById('message-input').disabled = false;
+        document.getElementById('send-btn').disabled = false;
+        document.getElementById('connect-btn').disabled = true;
+        logSystem("Connection established!");
+      });
+
+      // Receive Message
+      conn.on('data', (data) => {
+        appendMessage(data, 'partner');
+      });
+
+      conn.on('close', () => {
+        updateStatus("Partner Disconnected", "disconnected");
+        document.getElementById('message-input').disabled = true;
+        document.getElementById('send-btn').disabled = true;
+        document.getElementById('connect-btn').disabled = false;
+        logSystem("Connection closed.");
+      });
     }
 
-    async function connectBluetooth() {
-      const serviceUuid = document.getElementById('serviceUuid').value.trim().toLowerCase();
-      const writeCharUuid = document.getElementById('writeCharUuid').value.trim().toLowerCase();
-      const notifyCharUuid = document.getElementById('notifyCharUuid').value.trim().toLowerCase() || writeCharUuid;
-      const statusDiv = document.getElementById('status');
+    function sendMessage() {
+      const input = document.getElementById('message-input');
+      const text = input.value.trim();
 
-      if (!navigator.bluetooth) {
-        log("Web Bluetooth API is not supported in this browser. Ensure HTTPS on Android Chrome.", "err");
-        return;
-      }
-
-      try {
-        log("Scanning for nearby BLE devices...");
-
-        // Uses acceptAllDevices to prevent scan-timeout failures on non-broadcasting devices
-        bluetoothDevice = await navigator.bluetooth.requestDevice({
-          acceptAllDevices: true,
-          optionalServices: [serviceUuid]
-        });
-
-        log(`Connecting to "${bluetoothDevice.name || 'Unnamed Device'}"...`);
-        const server = await bluetoothDevice.gatt.connect();
-
-        log(`Fetching Primary Service (${serviceUuid})...`);
-        const service = await server.getPrimaryService(serviceUuid);
-
-        log(`Fetching Write Characteristic (${writeCharUuid})...`);
-        writeCharacteristic = await service.getCharacteristic(writeCharUuid);
-
-        // Check if Notify characteristic is different
-        if (notifyCharUuid === writeCharUuid) {
-          notifyCharacteristic = writeCharacteristic;
-        } else {
-          log(`Fetching Notify Characteristic (${notifyCharUuid})...`);
-          notifyCharacteristic = await service.getCharacteristic(notifyCharUuid);
-        }
-
-        // Subscribe to Notifications
-        if (notifyCharacteristic.properties.notify || notifyCharacteristic.properties.indicate) {
-          log("Subscribing to incoming device messages...");
-          await notifyCharacteristic.startNotifications();
-          notifyCharacteristic.addEventListener('characteristicvaluechanged', handleIncomingData);
-          log("Listening for responses!");
-        } else {
-          log("Warning: Selected Notify Characteristic does NOT support notifications.", "err");
-        }
-
-        // Update UI state
-        statusDiv.textContent = `Connected: ${bluetoothDevice.name || 'Device'}`;
-        statusDiv.className = "connected";
-        document.getElementById('message').disabled = false;
-        document.getElementById('sendBtn').disabled = false;
-        document.getElementById('connectBtn').disabled = true;
-
-        bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
-
-      } catch (error) {
-        log(`${error.name}: ${error.message}`, "err");
-        statusDiv.textContent = `Error: ${error.message}`;
-        statusDiv.className = "disconnected";
+      if (text && conn && conn.open) {
+        conn.send(text); // Send data instantly over WebRTC
+        appendMessage(text, 'me');
+        input.value = '';
       }
     }
 
-    function handleIncomingData(event) {
-      const value = event.target.value;
-      const decoder = new TextDecoder('utf-8');
-      const text = decoder.decode(value);
-      log(`RX: ${text.trim()}`, "rx");
+    function appendMessage(text, sender) {
+      const chatBox = document.getElementById('chat-box');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `msg msg-${sender}`;
+      msgDiv.textContent = text;
+      chatBox.appendChild(msgDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    async function sendMessage() {
-      const messageInput = document.getElementById('message');
-      let text = messageInput.value;
-
-      if (!writeCharacteristic || !text) return;
-
-      if (document.getElementById('addCR').checked) text += '\r';
-      if (document.getElementById('addNewline').checked) text += '\n';
-
-      try {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(text);
-
-        // Smart-detect write property (With Response vs Without Response)
-        if (writeCharacteristic.properties.write) {
-          await writeCharacteristic.writeValueWithResponse(data);
-        } else if (writeCharacteristic.properties.writeWithoutResponse) {
-          await writeCharacteristic.writeValueWithoutResponse(data);
-        } else {
-          await writeCharacteristic.writeValue(data);
-        }
-
-        log(`TX: ${text.replace('\r', '\\r').replace('\n', '\\n')}`, "tx");
-        messageInput.value = '';
-      } catch (error) {
-        log(`Send Failed: ${error.message}`, "err");
-      }
+    function logSystem(text) {
+      const chatBox = document.getElementById('chat-box');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'msg msg-sys';
+      msgDiv.textContent = text;
+      chatBox.appendChild(msgDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    function onDisconnected() {
-      const statusDiv = document.getElementById('status');
-      statusDiv.textContent = "Status: Device disconnected";
-      statusDiv.className = "disconnected";
-      document.getElementById('message').disabled = true;
-      document.getElementById('sendBtn').disabled = true;
-      document.getElementById('connectBtn').disabled = false;
-      log("Device disconnected from GATT server.", "err");
+    function updateStatus(text, className) {
+      const status = document.getElementById('status');
+      status.textContent = `Status: ${text}`;
+      status.className = className;
     }
   </script>
 </body>

@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realistic 3D 32-Key Piano Studio</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        pianoGold: '#d4af37',
+                        pianoMahogany: '#2d150d',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+
+        /* Glassmorphism background utilities */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-button {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-button:hover {
+            background: rgba(255, 255, 255, 0.18);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .glass-button:active {
+            transform: translateY(1px);
+        }
+
+        .glass-button.active {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.5), rgba(168, 85, 247, 0.5));
+            border-color: rgba(168, 85, 247, 0.6);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        /* Canvas styling */
+        #webgl-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* Pulse glow animation */
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 10px rgba(99, 102, 241, 0.4); }
+            50% { box-shadow: 0 0 22px rgba(168, 85, 247, 0.8); }
+        }
+
+        .sustain-active {
+            animation: pulseGlow 1.8s infinite;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.4), rgba(5, 150, 105, 0.6)) !important;
+            border-color: rgba(52, 211, 153, 0.8) !important;
+        }
+    </style>
+</head>
+<body class="h-full text-slate-100 antialiased bg-slate-950 overflow-hidden select-none">
+
+    <!-- 3D Canvas Container -->
+    <div id="webgl-container"></div>
+
+    <!-- UI Overlay Layer -->
+    <div class="relative z-10 flex flex-col justify-between h-full pointer-events-none p-4 md:p-6">
+        
+        <!-- Top Navigation / Control Bar -->
+        <header class="flex flex-wrap items-center justify-between gap-4 pointer-events-auto">
+            <!-- Brand & Audio Start -->
+            <div class="flex items-center gap-3 glass-panel px-4 py-2.5 rounded-2xl shadow-2xl">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-amber-400 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid font-bold text-lg fa-music"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+                        VIRTUOSO 32 <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">3D GRAND</span>
+                    </h1>
+                    <p class="text-xs text-slate-400 font-medium">32 Keys • Acoustic & Synth Engine</p>
+                </div>
+            </div>
+
+            <!-- Sound Preset & Demo Player Controls -->
+            <div class="flex flex-wrap items-center gap-2 glass-panel p-2 rounded-2xl shadow-2xl">
+                <!-- Instrument Preset -->
+                <div class="flex items-center gap-2 px-2">
+                    <i class="fa-solid fa-sliders text-indigo-400 text-sm"></i>
+                    <select id="preset-select" class="bg-slate-900/80 text-xs font-semibold text-slate-200 border border-slate-700/60 rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                        <option value="concert-grand">🎹 Concert Grand Piano</option>
+                        <option value="bright-upright">🎼 Bright Upright Piano</option>
+                        <option value="vintage-electric">⚡ Vintage Electric Piano</option>
+                        <option value="warm-synth">✨ Warm Synthesizer</option>
+                    </select>
+                </div>
+
+                <div class="h-6 w-px bg-slate-700/60 mx-1 hidden sm:block"></div>
+
+                <!-- Song Auto-Play Selector -->
+                <div class="flex items-center gap-2">
+                    <select id="song-select" class="bg-slate-900/80 text-xs font-semibold text-slate-200 border border-slate-700/60 rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                        <option value="fur-elise">🎵 Für Elise (Beethoven)</option>
+                        <option value="ode-to-joy">🎺 Ode to Joy (Beethoven)</option>
+                        <option value="twinkle">⭐ Twinkle Twinkle Star</option>
+                    </select>
+                    <button id="btn-play-song" class="glass-button px-3.5 py-1.5 rounded-xl text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                        <i id="play-icon" class="fa-solid fa-play"></i> <span id="play-text">Play Song</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Camera View Presets -->
+            <div class="hidden lg:flex items-center gap-1.5 glass-panel p-1.5 rounded-2xl shadow-2xl">
+                <button data-camera="default" class="cam-btn glass-button active px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                    <i class="fa-solid fa-cube text-indigo-400"></i> 3D Free
+                </button>
+                <button data-camera="player" class="cam-btn glass-button px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                    <i class="fa-solid fa-user text-purple-400"></i> Player
+                </button>
+                <button data-camera="top" class="cam-btn glass-button px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                    <i class="fa-solid fa-arrows-up-to-line text-emerald-400"></i> Top Down
+                </button>
+                <button data-camera="closeup" class="cam-btn glass-button px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                    <i class="fa-solid fa-magnifying-glass-plus text-amber-400"></i> Close-Up
+                </button>
+            </div>
+        </header>
+
+        <!-- Center Audio Spectrum Visualizer Overlay -->
+        <div class="pointer-events-none self-center w-full max-w-xl opacity-80 transition-opacity my-auto">
+            <canvas id="visualizer-canvas" class="w-full h-16 rounded-xl"></canvas>
+        </div>
+
+        <!-- Bottom Controls & Key Guide Panel -->
+        <footer class="flex flex-col md:flex-row items-stretch md:items-end justify-between gap-4 pointer-events-auto">
+            
+            <!-- Audio Tweaks & Expressive Controls -->
+            <div class="flex flex-wrap items-center gap-3 glass-panel p-3 rounded-2xl shadow-2xl">
+                <!-- Master Volume Slider -->
+                <div class="flex items-center gap-2.5 px-2">
+                    <i class="fa-solid fa-volume-high text-indigo-400 text-sm"></i>
+                    <input id="volume-slider" type="range" min="0" max="1" step="0.01" value="0.7" class="w-20 md:w-28 accent-indigo-500 cursor-pointer">
+                </div>
+
+                <div class="h-6 w-px bg-slate-700/60"></div>
+
+                <!-- Reverb / Room Resonance Slider -->
+                <div class="flex items-center gap-2.5 px-2">
+                    <i class="fa-solid fa-door-open text-purple-400 text-sm"></i>
+                    <span class="text-xs font-semibold text-slate-300">Reverb</span>
+                    <input id="reverb-slider" type="range" min="0" max="1" step="0.01" value="0.35" class="w-20 md:w-24 accent-purple-500 cursor-pointer">
+                </div>
+
+                <div class="h-6 w-px bg-slate-700/60"></div>
+
+                <!-- Sustain Pedal Button -->
+                <button id="sustain-btn" class="glass-button px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-shoe-prints text-amber-400"></i> Sustain <span class="font-mono text-[10px] opacity-75 px-1.5 py-0.5 rounded bg-slate-800">[SPACE]</span>
+                </button>
+            </div>
+
+            <!-- Key Overlay Helpers & Settings -->
+            <div class="flex items-center justify-between md:justify-end gap-3 glass-panel p-3 rounded-2xl shadow-2xl">
+                <!-- Toggle Key Labels -->
+                <button id="toggle-labels-btn" class="glass-button active px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-font text-indigo-400"></i> Key Labels
+                </button>
+
+                <!-- Particle Visualizer Toggle -->
+                <button id="toggle-particles-btn" class="glass-button active px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-sparkles text-amber-400"></i> Particles
+                </button>
+
+                <!-- Keyboard Map Help Drawer Toggle -->
+                <button id="toggle-help-btn" class="glass-button px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-keyboard text-emerald-400"></i> Controls Map
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Keyboard Controls Modal / Guide Overlay -->
+    <div id="help-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+        <div class="glass-panel w-full max-w-2xl rounded-3xl p-6 shadow-2xl border border-slate-700/80 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-keyboard text-2xl text-indigo-400"></i>
+                    <div>
+                        <h2 class="text-lg font-bold text-white">32-Key PC Keyboard Layout Map</h2>
+                        <p class="text-xs text-slate-400">Play notes smoothly spanning F2 to C5 across standard keyboard keys</p>
+                    </div>
+                </div>
+                <button id="close-help-btn" class="text-slate-400 hover:text-white text-xl p-2">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="mt-5 space-y-4 text-xs">
+                <div>
+                    <h3 class="font-bold text-indigo-300 uppercase tracking-wider mb-2">Lower Octave (F2 - B3)</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono">
+                        <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 flex justify-between"><span class="text-slate-400">F2 - B2</span> <span class="text-amber-300 font-bold">Z X C V</span></div>
+                        <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 flex justify-between"><span class="text-slate-400">Accidentals</span> <span class="text-purple-300 font-bold">S D F</span></div>
+                        <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 flex justify-between"><span class="text-slate-400">C3 - B3</span> <span class="text-amber-300 font-bold">G B N M , . /</span></div>
+                        <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 flex justify-between"><span class="text-slate-400">Accidentals</span> <span class="text-purple-300 font-bold">H J K L ;</span></div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-indigo-300 uppercase tracking-wider mb-2">Upper Octave (C4 - C5)</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono">
+                        <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 flex justify-between"><span class="text-slate-400">C4 - C5</span> <span class="text-amber-300 font-bold">Q W E R T Y U I</span></div>
+                        <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 flex justify-between"><span class="text-slate-400">Accidentals</span> <span class="text-purple-300 font-bold">2 3 5 6 7</span></div>
+                        <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 flex justify-between"><span class="text-slate-400">Sustain Pedal</span> <span class="text-emerald-300 font-bold">SPACEBAR</span></div>
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200">
+                    <p><i class="fa-solid fa-circle-info mr-1.5 text-indigo-400"></i> You can click or drag over 3D keys with your mouse/touchscreen, or rotate and zoom the grand piano from any angle using mouse click & drag!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Startup Prompt Banner -->
+    <div id="audio-prompt" class="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel text-center p-8 rounded-3xl max-w-md border border-indigo-500/40 shadow-2xl space-y-4">
+            <div class="w-16 h-16 rounded-2xl bg-indigo-600/30 border border-indigo-400/50 text-indigo-300 flex items-center justify-center text-3xl mx-auto shadow-inner">
+                <i class="fa-solid fa-headphones"></i>
+            </div>
+            <h2 class="text-xl font-bold text-white">Initialize Audio Engine</h2>
+            <p class="text-xs text-slate-300 leading-relaxed">Click below to activate high-fidelity Web Audio synthesis for the 32-Key 3D Grand Piano.</p>
+            <button id="start-audio-btn" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold text-sm shadow-lg shadow-indigo-500/30 hover:brightness-110 active:scale-95 transition-all">
+                <i class="fa-solid fa-power-off mr-2"></i> Launch Piano
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // ==========================================
+        // 1. AUDIO SYNTHESIZER ENGINE (Web Audio API)
+        // ==========================================
+        class PianoAudioEngine {
+            constructor() {
+                this.ctx = null;
+                this.masterGain = null;
+                this.reverbNode = null;
+                this.reverbGain = null;
+                this.dryGain = null;
+                this.analyser = null;
+                this.preset = 'concert-grand';
+                this.sustainPedal = false;
+                this.activeNotes = new Map(); // keyIdx -> note audio objects
+                this.sustainedNotes = new Set(); // set of keyIdx held by sustain
+                this.volume = 0.7;
+                this.reverbLevel = 0.35;
+                this.isInitialized = false;
+            }
+
+            init() {
+                if (this.isInitialized) return;
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioCtx();
+
+                // Master gain
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = this.volume;
+
+                // Analyser node for visualizer
+                this.analyser = this.ctx.createAnalyser();
+                this.analyser.fftSize = 128;
+
+                // Reverb Convolver setup
+                this.reverbNode = this.ctx.createConvolver();
+                this.reverbNode.buffer = this.createImpulseResponse(2.2, 2.0);
+
+                this.reverbGain = this.ctx.createGain();
+                this.reverbGain.gain.value = this.reverbLevel;
+
+                this.dryGain = this.ctx.createGain();
+                this.dryGain.gain.value = 1.0 - (this.reverbLevel * 0.5);
+
+                // Wiring Audio Graph
+                this.dryGain.connect(this.masterGain);
+                this.reverbNode.connect(this.reverbGain);
+                this.reverbGain.connect(this.masterGain);
+                this.masterGain.connect(this.analyser);
+                this.analyser.connect(this.ctx.destination);
+
+                this.isInitialized = true;
+            }
+
+            createImpulseResponse(duration, decay) {
+                const sampleRate = this.ctx.sampleRate;
+                const length = sampleRate * duration;
+                const impulse = this.ctx.createBuffer(2, length, sampleRate);
+                for (let c = 0; c < 2; c++) {
+                    const channelData = impulse.getChannelData(c);
+                    for (let i = 0; i < length; i++) {
+                        channelData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+                    }
+                }
+                return impulse;
+            }
+
+            setVolume(val) {
+                this.volume = parseFloat(val);
+                if (this.masterGain) {
+                    this.masterGain.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.02);
+                }
+            }
+
+            setReverb(val) {
+                this.reverbLevel = parseFloat(val);
+                if (this.reverbGain && this.dryGain) {
+                    this.reverbGain.gain.setTargetAtTime(this.reverbLevel, this.ctx.currentTime, 0.02);
+                    this.dryGain.gain.setTargetAtTime(1.0 - (this.reverbLevel * 0.5), this.ctx.currentTime, 0.02);
+                }
+            }
+
+            playNote(keyIdx, freq, velocity = 0.8) {
+                if (!this.isInitialized) return;
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+
+                // If note already active, release it quickly
+                if (this.activeNotes.has(keyIdx)) {
+                    this.stopNote(keyIdx, true);
+                }
+
+                const now = this.ctx.currentTime;
+                const noteGain = this.ctx.createGain();
+                const filter = this.ctx.createBiquadFilter();
+
+                // Connect to outputs
+                noteGain.connect(this.dryGain);
+                noteGain.connect(this.reverbNode);
+                filter.connect(noteGain);
+
+                let oscillators = [];
+                let noiseSource = null;
+
+                // Preset Synthesis Configurations
+                if (this.preset === 'concert-grand' || this.preset === 'bright-upright') {
+                    const isBright = this.preset === 'bright-upright';
+                    
+                    // Filter envelope
+                    filter.type = 'lowpass';
+                    const startCutoff = isBright ? freq * 12 : freq * 8;
+                    const endCutoff = isBright ? freq * 2.5 : freq * 1.8;
+                    filter.frequency.setValueAtTime(Math.min(startCutoff, 18000), now);
+                    filter.frequency.exponentialRampToValueAtTime(Math.max(endCutoff, 100), now + 1.2);
+
+                    // Additive Harmonics
+                    const harmonics = isBright ? [1.0, 0.7, 0.4, 0.25, 0.15] : [1.0, 0.5, 0.25, 0.1, 0.05];
+                    harmonics.forEach((amp, idx) => {
+                        const osc = this.ctx.createOscillator();
+                        osc.type = idx === 0 ? 'triangle' : 'sine';
+                        // Subtle detune for string warmth
+                        const detune = (idx - 1) * 2.5 + (Math.random() - 0.5) * 1.5;
+                        osc.frequency.setValueAtTime(freq * (idx + 1), now);
+                        osc.detune.setValueAtTime(detune, now);
+
+                        const hGain = this.ctx.createGain();
+                        hGain.gain.value = amp;
+                        osc.connect(hGain);
+                        hGain.connect(filter);
+                        osc.start(now);
+                        oscillators.push(osc);
+                    });
+
+                    // Hammer percussion burst
+                    const bufferSize = this.ctx.sampleRate * 0.025;
+                    const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                    const output = noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.2));
+                    }
+                    noiseSource = this.ctx.createBufferSource();
+                    noiseSource.buffer = noiseBuffer;
+                    const noiseFilter = this.ctx.createBiquadFilter();
+                    noiseFilter.type = 'bandpass';
+                    noiseFilter.frequency.value = freq * 3;
+                    noiseSource.connect(noiseFilter);
+                    noiseFilter.connect(noteGain);
+                    noiseSource.start(now);
+
+                    // Volume Envelope
+                    const attack = 0.004;
+                    const peakGain = velocity * 0.8;
+                    noteGain.gain.setValueAtTime(0, now);
+                    noteGain.gain.linearRampToValueAtTime(peakGain, now + attack);
+                    noteGain.gain.exponentialRampToValueAtTime(peakGain * 0.4, now + 0.4);
+                    noteGain.gain.exponentialRampToValueAtTime(peakGain * 0.15, now + 2.5);
+
+                } else if (this.preset === 'vintage-electric') {
+                    // Rhodes/Wurlitzer-like electric piano
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(freq * 5, now);
+                    filter.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.8);
+
+                    const osc = this.ctx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now);
+
+                    const osc2 = this.ctx.createOscillator();
+                    osc2.type = 'triangle';
+                    osc2.frequency.setValueAtTime(freq * 3, now);
+                    const g2 = this.ctx.createGain();
+                    g2.gain.value = 0.15;
+                    osc2.connect(g2);
+                    g2.connect(filter);
+
+                    osc.connect(filter);
+                    osc.start(now);
+                    osc2.start(now);
+                    oscillators.push(osc, osc2);
+
+                    const attack = 0.005;
+                    noteGain.gain.setValueAtTime(0, now);
+                    noteGain.gain.linearRampToValueAtTime(velocity * 0.7, now + attack);
+                    noteGain.gain.exponentialRampToValueAtTime(velocity * 0.2, now + 1.8);
+
+                } else if (this.preset === 'warm-synth') {
+                    // Warm Analog Saw/Square Synth
+                    filter.type = 'lowpass';
+                    filter.Q.value = 3.5;
+                    filter.frequency.setValueAtTime(freq * 1.2, now);
+                    filter.frequency.exponentialRampToValueAtTime(freq * 6, now + 0.15);
+                    filter.frequency.exponentialRampToValueAtTime(freq * 2, now + 1.2);
+
+                    const osc1 = this.ctx.createOscillator();
+                    osc1.type = 'sawtooth';
+                    osc1.frequency.setValueAtTime(freq, now);
+                    osc1.detune.setValueAtTime(-6, now);
+
+                    const osc2 = this.ctx.createOscillator();
+                    osc2.type = 'square';
+                    osc2.frequency.setValueAtTime(freq, now);
+                    osc2.detune.setValueAtTime(6, now);
+
+                    osc1.connect(filter);
+                    osc2.connect(filter);
+                    osc1.start(now);
+                    osc2.start(now);
+                    oscillators.push(osc1, osc2);
+
+                    const attack = 0.02;
+                    noteGain.gain.setValueAtTime(0, now);
+                    noteGain.gain.linearRampToValueAtTime(velocity * 0.6, now + attack);
+                    noteGain.gain.exponentialRampToValueAtTime(velocity * 0.25, now + 2.0);
+                }
+
+                this.activeNotes.set(keyIdx, {
+                    oscillators,
+                    noteGain,
+                    filter,
+                    startTime: now
+                });
+            }
+
+            stopNote(keyIdx, immediate = false) {
+                if (!this.activeNotes.has(keyIdx)) return;
+
+                if (this.sustainPedal && !immediate) {
+                    this.sustainedNotes.add(keyIdx);
+                    return;
+                }
+
+                const noteData = this.activeNotes.get(keyIdx);
+                this.activeNotes.delete(keyIdx);
+                this.sustainedNotes.delete(keyIdx);
+
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const releaseTime = immediate ? 0.03 : (this.preset === 'warm-synth' ? 0.4 : 0.25);
+
+                noteData.noteGain.gain.cancelScheduledValues(now);
+                noteData.noteGain.gain.setValueAtTime(noteData.noteGain.gain.value, now);
+                noteData.noteGain.gain.exponentialRampToValueAtTime(0.0001, now + releaseTime);
+
+                setTimeout(() => {
+                    noteData.oscillators.forEach(osc => {
+                        try { osc.stop(); osc.disconnect(); } catch (e) {}
+                    });
+                    try { noteData.noteGain.disconnect(); } catch (e) {}
+                }, releaseTime * 1000 + 50);
+            }
+
+            setSustain(active) {
+                this.sustainPedal = active;
+                if (!active) {
+                    // Release all sustained notes
+                    this.sustainedNotes.forEach(keyIdx => {
+                        this.stopNote(keyIdx, false);
+                    });
+                    this.sustainedNotes.clear();
+                }
+            }
+        }
+
+        const audioEngine = new PianoAudioEngine();
+
+        // ==========================================
+        // 2. 3D SCENE & PIANO GEOMETRY SETUP
+        // ==========================================
+        
+        // 32 Keys Note Structure: F2 (87.31Hz) to C5 (523.25Hz)
+        const NOTE_DEFS = [
+            { note: "F2",  isBlack: false, key: "z", whiteIdx: 0 },
+            { note: "F#2", isBlack: true,  key: "s", whiteIdxBefore: 0 },
+            { note: "G2",  isBlack: false, key: "x", whiteIdx: 1 },
+            { note: "G#2", isBlack: true,  key: "d", whiteIdxBefore: 1 },
+            { note: "A2",  isBlack: false, key: "c", whiteIdx: 2 },
+            { note: "A#2", isBlack: true,  key: "f", whiteIdxBefore: 2 },
+            { note: "B2",  isBlack: false, key: "v", whiteIdx: 3 },
+            { note: "C3",  isBlack: false, key: "g", whiteIdx: 4 },
+            { note: "C#3", isBlack: true,  key: "h", whiteIdxBefore: 4 },
+            { note: "D3",  isBlack: false, key: "b", whiteIdx: 5 },
+            { note: "D#3", isBlack: true,  key: "j", whiteIdxBefore: 5 },
+            { note: "E3",  isBlack: false, key: "n", whiteIdx: 6 },
+            { note: "F3",  isBlack: false, key: "m", whiteIdx: 7 },
+            { note: "F#3", isBlack: true,  key: "k", whiteIdxBefore: 7 },
+            { note: "G3",  isBlack: false, key: ",", whiteIdx: 8 },
+            { note: "G#3", isBlack: true,  key: "l", whiteIdxBefore: 8 },
+            { note: "A3",  isBlack: false, key: ".", whiteIdx: 9 },
+            { note: "A#3", isBlack: true,  key: ";", whiteIdxBefore: 9 },
+            { note: "B3",  isBlack: false, key: "/", whiteIdx: 10 },
+            { note: "C4",  isBlack: false, key: "q", whiteIdx: 11 }, // Middle C
+            { note: "C#4", isBlack: true,  key: "2", whiteIdxBefore: 11 },
+            { note: "D4",  isBlack: false, key: "w", whiteIdx: 12 },
+            { note: "D#4", isBlack: true,  key: "3", whiteIdxBefore: 12 },
+            { note: "E4",  isBlack: false, key: "e", whiteIdx: 13 },
+            { note: "F4",  isBlack: false, key: "r", whiteIdx: 14 },
+            { note: "F#4", isBlack: true,  key: "5", whiteIdxBefore: 14 },
+            { note: "G4",  isBlack: false, key: "t", whiteIdx: 15 },
+            { note: "G#4", isBlack: true,  key: "6", whiteIdxBefore: 15 },
+            { note: "A4",  isBlack: false, key: "y", whiteIdx: 16 },
+            { note: "A#4", isBlack: true,  key: "7", whiteIdxBefore: 16 },
+            { note: "B4",  isBlack: false, key: "u", whiteIdx: 17 },
+            { note: "C5",  isBlack: false, key: "i", whiteIdx: 18 }
+        ];
+
+        // Three.js Core Globals
+        let scene, camera, renderer, controls;
+        const keyMeshes = []; // Stores objects for each key: { pivot, mesh, def, isPressed, targetRot, origMat, emissiveMat }
+        const particles = [];
+        let particlesEnabled = true;
+        let showLabels = true;
+        const keyLabelSprites = [];
+
+        const container = document.getElementById('webgl-container');
+
+        function init3D() {
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0c14);
+            scene.fog = new THREE.FogExp2(0x0a0c14, 0.018);
+
+            // Camera Setup
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 11, 21);
+
+            // Renderer Setup
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.1;
+            container.appendChild(renderer.domElement);
+
+            // Orbit Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 + 0.05; // Prevent camera from going under floor
+            controls.minDistance = 6;
+            controls.maxDistance = 45;
+            controls.target.set(0, 0, 0);
+
+            // Studio Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
+            scene.add(ambientLight);
+
+            const mainLight = new THREE.DirectionalLight(0xfff5ea, 1.2);
+            mainLight.position.set(12, 20, 15);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 2048;
+            mainLight.shadow.mapSize.height = 2048;
+            mainLight.shadow.bias = -0.0001;
+            scene.add(mainLight);
+
+            const fillLight = new THREE.DirectionalLight(0x738bfd, 0.5);
+            fillLight.position.set(-15, 12, -10);
+            scene.add(fillLight);
+
+            const keySpotlight = new THREE.SpotLight(0xa855f7, 2.5, 30, Math.PI / 4, 0.5);
+            keySpotlight.position.set(0, 14, 8);
+            keySpotlight.target.position.set(0, 0, 0);
+            scene.add(keySpotlight);
+            scene.add(keySpotlight.target);
+
+            // Ground Reflective Floor
+            const floorGeo = new THREE.PlaneGeometry(120, 120);
+            const floorMat = new THREE.MeshStandardMaterial({
+                color: 0x0f111a,
+                roughness: 0.35,
+                metalness: 0.6
+            });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -3.5;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Subtle floor grid accent
+            const gridHelper = new THREE.GridHelper(80, 40, 0x334155, 0x1e293b);
+            gridHelper.position.y = -3.49;
+            scene.add(gridHelper);
+
+            // Build Piano Casing & 32 Keys
+            buildPianoModel();
+        }
+
+        function buildPianoModel() {
+            const pianoGroup = new THREE.Group();
+
+            // Dimensions & Spacing
+            const numWhiteKeys = 19;
+            const whiteWidth = 0.92;
+            const whiteLength = 5.2;
+            const whiteHeight = 0.85;
+            const whiteSpacing = 0.98;
+            const totalWidth = numWhiteKeys * whiteSpacing;
+            const startX = -(totalWidth - whiteSpacing) / 2;
+
+            // Materials
+            const whiteKeyMat = new THREE.MeshStandardMaterial({
+                color: 0xfaf8f6,
+                roughness: 0.18,
+                metalness: 0.05
+            });
+
+            const blackKeyMat = new THREE.MeshStandardMaterial({
+                color: 0x111115,
+                roughness: 0.25,
+                metalness: 0.15
+            });
+
+            const cabinetMat = new THREE.MeshStandardMaterial({
+                color: 0x0c0d12,
+                roughness: 0.12,
+                metalness: 0.3
+            });
+
+            const mahoganyMat = new THREE.MeshStandardMaterial({
+                color: 0x2a140e,
+                roughness: 0.25,
+                metalness: 0.1
+            });
+
+            const feltMat = new THREE.MeshStandardMaterial({
+                color: 0x991111,
+                roughness: 0.9
+            });
+
+            const goldMat = new THREE.MeshStandardMaterial({
+                color: 0xd4af37,
+                roughness: 0.2,
+                metalness: 0.9
+            });
+
+            // --- 1. BUILD KEYS ---
+            NOTE_DEFS.forEach((def, index) => {
+                const isBlack = def.isBlack;
+                const keyWidth = isBlack ? 0.52 : whiteWidth;
+                const keyLength = isBlack ? 3.3 : whiteLength;
+                const keyHeight = isBlack ? 0.75 : whiteHeight;
+
+                const geo = new THREE.BoxGeometry(keyWidth, keyHeight, keyLength);
+                // Move geometry origin to back center so rotation pivot is at the back
+                geo.translate(0, 0, keyLength / 2);
+
+                const mat = isBlack ? blackKeyMat.clone() : whiteKeyMat.clone();
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                mesh.userData = { keyIdx: index, noteDef: def };
+
+                // Pivot Group positioning
+                const pivot = new THREE.Group();
+                let xPos = 0;
+                let yPos = 0;
+                let zPos = 0;
+
+                if (!isBlack) {
+                    xPos = startX + def.whiteIdx * whiteSpacing;
+                    yPos = 0;
+                    zPos = -keyLength / 2;
+                } else {
+                    const leftX = startX + def.whiteIdxBefore * whiteSpacing;
+                    xPos = leftX + whiteSpacing / 2;
+                    yPos = 0.42;
+                    zPos = -keyLength / 2 - 0.7;
+                }
+
+                pivot.position.set(xPos, yPos, zPos);
+                pivot.add(mesh);
+                pianoGroup.add(pivot);
+
+                // Emissive pressed material highlight
+                const pressedMat = mat.clone();
+                pressedMat.emissive = isBlack ? new THREE.Color(0x8b5cf6) : new THREE.Color(0x6366f1);
+                pressedMat.emissiveIntensity = isBlack ? 0.6 : 0.45;
+
+                keyMeshes.push({
+                    pivot,
+                    mesh,
+                    def,
+                    isPressed: false,
+                    targetRotX: 0,
+                    origMat: mat,
+                    pressedMat,
+                    freq: 87.30715 * Math.pow(2, index / 12)
+                });
+
+                // Attach Key Label Badge Sprite
+                const sprite = createKeyLabelSprite(def.key.toUpperCase(), isBlack);
+                sprite.position.set(0, keyHeight / 2 + 0.1, isBlack ? 1.0 : 2.0);
+                pivot.add(sprite);
+                keyLabelSprites.push(sprite);
+            });
+
+            // --- 2. CABINET CASING & ACCENTS ---
+            // Red Felt Strip behind keys
+            const feltGeo = new THREE.BoxGeometry(totalWidth + 0.4, 0.15, 0.35);
+            const feltMesh = new THREE.Mesh(feltGeo, feltMat);
+            feltMesh.position.set(0, 0.1, -2.75);
+            pianoGroup.add(feltMesh);
+
+            // Keybed Base
+            const baseGeo = new THREE.BoxGeometry(totalWidth + 1.2, 0.6, whiteLength + 1.0);
+            const baseMesh = new THREE.Mesh(baseGeo, cabinetMat);
+            baseMesh.position.set(0, -0.65, -0.2);
+            baseMesh.receiveShadow = true;
+            pianoGroup.add(baseMesh);
+
+            // Side Blocks (Cheeks)
+            const cheekGeo = new THREE.BoxGeometry(0.8, 1.6, whiteLength + 1.4);
+            const cheekLeft = new THREE.Mesh(cheekGeo, mahoganyMat);
+            cheekLeft.position.set(-totalWidth / 2 - 0.7, 0.2, -0.2);
+            cheekLeft.castShadow = true;
+
+            const cheekRight = cheekLeft.clone();
+            cheekRight.position.x = totalWidth / 2 + 0.7;
+            pianoGroup.add(cheekLeft, cheekRight);
+
+            // Fallboard / Main Back Casing
+            const backGeo = new THREE.BoxGeometry(totalWidth + 2.2, 3.5, 3.0);
+            const backMesh = new THREE.Mesh(backGeo, cabinetMat);
+            backMesh.position.set(0, 1.5, -4.2);
+            backMesh.castShadow = true;
+            pianoGroup.add(backMesh);
+
+            // Golden Brand Name Inlay
+            const logoGeo = new THREE.BoxGeometry(3.6, 0.35, 0.05);
+            const logoMesh = new THREE.Mesh(logoGeo, goldMat);
+            logoMesh.position.set(0, 1.8, -2.65);
+            pianoGroup.add(logoMesh);
+
+            // Sheet Music Stand
+            const musicStandGeo = new THREE.BoxGeometry(6.5, 2.5, 0.15);
+            const musicStand = new THREE.Mesh(musicStandGeo, cabinetMat);
+            musicStand.position.set(0, 3.2, -4.0);
+            musicStand.rotation.x = -0.25;
+            pianoGroup.add(musicStand);
+
+            // Music Sheet Page
+            const sheetGeo = new THREE.PlaneGeometry(3.5, 2.0);
+            const sheetCanvas = document.createElement('canvas');
+            sheetCanvas.width = 256; sheetCanvas.height = 160;
+            const sCtx = sheetCanvas.getContext('2d');
+            sCtx.fillStyle = '#f8fafc'; sCtx.fillRect(0,0,256,160);
+            sCtx.fillStyle = '#0f172a'; sCtx.font = 'bold 16px sans-serif'; sCtx.fillText('FUR ELISE', 85, 30);
+            sCtx.strokeStyle = '#334155'; sCtx.lineWidth = 2;
+            for(let i = 0; i < 5; i++) {
+                sCtx.beginPath(); sCtx.moveTo(20, 50 + i*8); sCtx.lineTo(236, 50 + i*8); sCtx.stroke();
+                sCtx.beginPath(); sCtx.moveTo(20, 100 + i*8); sCtx.lineTo(236, 100 + i*8); sCtx.stroke();
+            }
+            const sheetTex = new THREE.CanvasTexture(sheetCanvas);
+            const sheetMat = new THREE.MeshBasicMaterial({ map: sheetTex });
+            const sheetMesh = new THREE.Mesh(sheetGeo, sheetMat);
+            sheetMesh.position.set(0, 3.22, -3.91);
+            sheetMesh.rotation.x = -0.25;
+            pianoGroup.add(sheetMesh);
+
+            // Legs & Pedals
+            const legGeo = new THREE.CylinderGeometry(0.35, 0.25, 3.0, 16);
+            const legLeft = new THREE.Mesh(legGeo, mahoganyMat);
+            legLeft.position.set(-totalWidth / 2 - 0.4, -2.0, 1.5);
+            const legRight = legLeft.clone();
+            legRight.position.x = totalWidth / 2 + 0.4;
+            pianoGroup.add(legLeft, legRight);
+
+            // Brass Pedals
+            const pedalBox = new THREE.Group();
+            for (let p = -1; p <= 1; p++) {
+                const pGeo = new THREE.BoxGeometry(0.25, 0.15, 1.2);
+                const pMesh = new THREE.Mesh(pGeo, goldMat);
+                pMesh.position.set(p * 0.7, -2.8, -0.5);
+                pedalBox.add(pMesh);
+            }
+            pianoGroup.add(pedalBox);
+
+            scene.add(pianoGroup);
+        }
+
+        // Key Label Sprite Generator
+        function createKeyLabelSprite(text, isBlack) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = isBlack ? 'rgba(255, 255, 255, 0.85)' : 'rgba(15, 23, 42, 0.85)';
+            ctx.beginPath();
+            ctx.arc(32, 32, 22, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = isBlack ? '#a855f7' : '#6366f1';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            ctx.fillStyle = isBlack ? '#0f172a' : '#ffffff';
+            ctx.font = 'bold 24px JetBrains Mono, monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 32, 34);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+            const sprite = new THREE.Sprite(spriteMat);
+            sprite.scale.set(0.65, 0.65, 1);
+            return sprite;
+        }
+
+        // Particle System for Active Notes
+        function spawnNoteParticle(keyObj) {
+            if (!particlesEnabled) return;
+
+            const count = 3;
+            const worldPos = new THREE.Vector3();
+            keyObj.mesh.getWorldPosition(worldPos);
+
+            for (let i = 0; i < count; i++) {
+                const pGeo = new THREE.SphereGeometry(0.08 + Math.random() * 0.06, 8, 8);
+                const pMat = new THREE.MeshBasicMaterial({
+                    color: keyObj.def.isBlack ? 0xc084fc : 0x818cf8,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const pMesh = new THREE.Mesh(pGeo, pMat);
+
+                pMesh.position.set(
+                    worldPos.x + (Math.random() - 0.5) * 0.4,
+                    worldPos.y + 0.4,
+                    worldPos.z + (Math.random() - 0.5) * 1.5
+                );
+
+                scene.add(pMesh);
+
+                particles.push({
+                    mesh: pMesh,
+                    vy: 0.04 + Math.random() * 0.05,
+                    vx: (Math.random() - 0.5) * 0.02,
+                    vz: (Math.random() - 0.5) * 0.02,
+                    life: 1.0
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.mesh.position.y += p.vy;
+                p.mesh.position.x += p.vx;
+                p.mesh.position.z += p.vz;
+                p.life -= 0.025;
+                p.mesh.material.opacity = Math.max(0, p.life);
+                p.mesh.scale.multiplyScalar(0.97);
+
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    p.mesh.geometry.dispose();
+                    p.mesh.material.dispose();
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        // ==========================================
+        // 3. USER INTERACTION & KEYBOARD BINDINGS
+        // ==========================================
+        const pressedKeys = new Set();
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let hoveredKeyIdx = null;
+
+        function noteOn(index) {
+            if (index < 0 || index >= keyMeshes.length) return;
+            const keyObj = keyMeshes[index];
+
+            if (!keyObj.isPressed) {
+                keyObj.isPressed = true;
+                keyObj.targetRotX = 0.07; // Rotate key downward
+                keyObj.mesh.material = keyObj.pressedMat;
+
+                audioEngine.playNote(index, keyObj.freq);
+                spawnNoteParticle(keyObj);
+            }
+        }
+
+        function noteOff(index) {
+            if (index < 0 || index >= keyMeshes.length) return;
+            const keyObj = keyMeshes[index];
+
+            if (keyObj.isPressed) {
+                keyObj.isPressed = false;
+                keyObj.targetRotX = 0; // Spring back up
+                keyObj.mesh.material = keyObj.origMat;
+
+                audioEngine.stopNote(index);
+            }
+        }
+
+        // PC Keyboard Event Handlers
+        window.addEventListener('keydown', (e) => {
+            if (e.repeat || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            const key = e.key.toLowerCase();
+
+            // Spacebar for Sustain Pedal
+            if (e.code === 'Space') {
+                e.preventDefault();
+                toggleSustain(true);
+                return;
+            }
+
+            // Map key to note index
+            const keyIdx = NOTE_DEFS.findIndex(d => d.key === key);
+            if (keyIdx !== -1) {
+                pressedKeys.add(key);
+                noteOn(keyIdx);
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            const key = e.key.toLowerCase();
+
+            if (e.code === 'Space') {
+                toggleSustain(false);
+                return;
+            }
+
+            const keyIdx = NOTE_DEFS.findIndex(d => d.key === key);
+            if (keyIdx !== -1) {
+                pressedKeys.delete(key);
+                noteOff(keyIdx);
+            }
+        });
+
+        // Mouse & Touch 3D Key Raycasting
+        function onPointerDown(e) {
+            if (e.target.closest('.pointer-events-auto')) return;
+
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(keyMeshes.map(k => k.mesh));
+
+            if (intersects.length > 0) {
+                const keyIdx = intersects[0].object.userData.keyIdx;
+                hoveredKeyIdx = keyIdx;
+                noteOn(keyIdx);
+            }
+        }
+
+        function onPointerMove(e) {
+            if (hoveredKeyIdx !== null && e.buttons === 1) {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(keyMeshes.map(k => k.mesh));
+
+                if (intersects.length > 0) {
+                    const newIdx = intersects[0].object.userData.keyIdx;
+                    if (newIdx !== hoveredKeyIdx) {
+                        noteOff(hoveredKeyIdx);
+                        hoveredKeyIdx = newIdx;
+                        noteOn(hoveredKeyIdx);
+                    }
+                } else {
+                    noteOff(hoveredKeyIdx);
+                    hoveredKeyIdx = null;
+                }
+            }
+        }
+
+        function onPointerUp() {
+            if (hoveredKeyIdx !== null) {
+                noteOff(hoveredKeyIdx);
+                hoveredKeyIdx = null;
+            }
+        }
+
+        window.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+
+        // ==========================================
+        // 4. AUTO-PLAY DEMO SONG ENGINE
+        // ==========================================
+        const SONGS = {
+            'fur-elise': [
+                { idx: 23, time: 0 },   { idx: 22, time: 250 }, { idx: 23, time: 500 },
+                { idx: 22, time: 750 }, { idx: 23, time: 1000 },{ idx: 18, time: 1250 },
+                { idx: 21, time: 1500 },{ idx: 19, time: 1750 },{ idx: 16, time: 2000 },
+                { idx: 7, time: 2300 }, { idx: 11, time: 2500 },{ idx: 16, time: 2700 },
+                { idx: 18, time: 2900 },{ idx: 11, time: 3200 },{ idx: 15, time: 3400 },
+                { idx: 18, time: 3600 },{ idx: 19, time: 3800 },{ idx: 11, time: 4100 },
+                { idx: 23, time: 4350 },{ idx: 22, time: 4600 },{ idx: 23, time: 4850 },
+                { idx: 22, time: 5100 },{ idx: 23, time: 5350 },{ idx: 18, time: 5600 },
+                { idx: 21, time: 5850 },{ idx: 19, time: 6100 },{ idx: 16, time: 6350 }
+            ],
+            'ode-to-joy': [
+                { idx: 23, time: 0 },   { idx: 23, time: 400 }, { idx: 24, time: 800 },
+                { idx: 26, time: 1200 },{ idx: 26, time: 1600 },{ idx: 24, time: 2000 },
+                { idx: 23, time: 2400 },{ idx: 21, time: 2800 },{ idx: 19, time: 3200 },
+                { idx: 19, time: 3600 },{ idx: 21, time: 4000 },{ idx: 23, time: 4400 },
+                { idx: 23, time: 4900 },{ idx: 21, time: 5200 },{ idx: 21, time: 5500 }
+            ],
+            'twinkle': [
+                { idx: 19, time: 0 },   { idx: 19, time: 400 }, { idx: 26, time: 800 },
+                { idx: 26, time: 1200 },{ idx: 28, time: 1600 },{ idx: 28, time: 2000 },
+                { idx: 26, time: 2400 },{ idx: 24, time: 3200 },{ idx: 24, time: 3600 },
+                { idx: 23, time: 4000 },{ idx: 23, time: 4400 },{ idx: 21, time: 4800 },
+                { idx: 21, time: 5200 },{ idx: 19, time: 5600 }
+            ]
+        };
+
+        let isPlayingSong = false;
+        let songTimeouts = [];
+
+        function playDemoSong(songId) {
+            stopDemoSong();
+            const song = SONGS[songId];
+            if (!song) return;
+
+            isPlayingSong = true;
+            updatePlayButtonUI(true);
+
+            song.forEach(note => {
+                const tOn = setTimeout(() => {
+                    noteOn(note.idx);
+                }, note.time);
+
+                const tOff = setTimeout(() => {
+                    noteOff(note.idx);
+                }, note.time + 320);
+
+                songTimeouts.push(tOn, tOff);
+            });
+
+            const totalDuration = song[song.length - 1].time + 800;
+            const tEnd = setTimeout(() => {
+                stopDemoSong();
+            }, totalDuration);
+            songTimeouts.push(tEnd);
+        }
+
+        function stopDemoSong() {
+            isPlayingSong = false;
+            songTimeouts.forEach(clearTimeout);
+            songTimeouts = [];
+            // Release all active keys
+            keyMeshes.forEach((_, idx) => noteOff(idx));
+            updatePlayButtonUI(false);
+        }
+
+        function updatePlayButtonUI(playing) {
+            const icon = document.getElementById('play-icon');
+            const text = document.getElementById('play-text');
+            if (playing) {
+                icon.className = 'fa-solid fa-stop text-red-400';
+                text.textContent = 'Stop';
+            } else {
+                icon.className = 'fa-solid fa-play';
+                text.textContent = 'Play Song';
+            }
+        }
+
+        // ==========================================
+        // 5. CAMERA PRESETS & AUDIO VISUALIZER
+        // ==========================================
+        function setCameraPreset(preset) {
+            const duration = 1000;
+            const startTime = performance.now();
+            const startPos = camera.position.clone();
+            const startTarget = controls.target.clone();
+
+            let targetPos = new THREE.Vector3(0, 11, 21);
+            let targetLookAt = new THREE.Vector3(0, 0, 0);
+
+            switch (preset) {
+                case 'player':
+                    targetPos.set(0, 5.5, 11);
+                    targetLookAt.set(0, -0.5, 0);
+                    break;
+                case 'top':
+                    targetPos.set(0, 22, 0.1);
+                    targetLookAt.set(0, 0, 0);
+                    break;
+                case 'closeup':
+                    targetPos.set(0, 2.8, 6.5);
+                    targetLookAt.set(0, 0, 0.8);
+                    break;
+                case 'default':
+                default:
+                    targetPos.set(0, 11, 21);
+                    targetLookAt.set(0, 0, 0);
+                    break;
+            }
+
+            function animateCam(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const ease = 1 - Math.pow(1 - progress, 3); // Cubic ease out
+
+                camera.position.lerpVectors(startPos, targetPos, ease);
+                controls.target.lerpVectors(startTarget, targetLookAt, ease);
+                controls.update();
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateCam);
+                }
+            }
+            requestAnimationFrame(animateCam);
+        }
+
+        // Real-Time Canvas Audio Spectrum Visualizer
+        const visCanvas = document.getElementById('visualizer-canvas');
+        const visCtx = visCanvas.getContext('2d');
+
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+
+            visCanvas.width = visCanvas.clientWidth;
+            visCanvas.height = visCanvas.clientHeight;
+            const width = visCanvas.width;
+            const height = visCanvas.height;
+
+            visCtx.clearRect(0, 0, width, height);
+
+            if (!audioEngine.analyser) return;
+
+            const bufferLength = audioEngine.analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            audioEngine.analyser.getByteFrequencyData(dataArray);
+
+            const barWidth = (width / bufferLength) * 2.2;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const barHeight = (dataArray[i] / 255) * height;
+
+                const gradient = visCtx.createLinearGradient(0, height, 0, 0);
+                gradient.addColorStop(0, 'rgba(99, 102, 241, 0.2)');
+                gradient.addColorStop(0.5, 'rgba(168, 85, 247, 0.7)');
+                gradient.addColorStop(1, 'rgba(244, 63, 94, 0.9)');
+
+                visCtx.fillStyle = gradient;
+                visCtx.beginPath();
+                visCtx.roundRect(x, height - barHeight, barWidth - 2, barHeight, [4, 4, 0, 0]);
+                visCtx.fill();
+
+                x += barWidth;
+            }
+        }
+
+        function toggleSustain(state) {
+            const btn = document.getElementById('sustain-btn');
+            const isActive = state !== undefined ? state : !audioEngine.sustainPedal;
+            audioEngine.setSustain(isActive);
+
+            if (isActive) {
+                btn.classList.add('sustain-active');
+            } else {
+                btn.classList.remove('sustain-active');
+            }
+        }
+
+        // ==========================================
+        // 6. MAIN ANIMATION LOOP & UI BINDINGS
+        // ==========================================
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Smooth 3D Key Rotation Physics
+            keyMeshes.forEach(k => {
+                k.pivot.rotation.x += (k.targetRotX - k.pivot.rotation.x) * 0.35;
+            });
+
+            // Update floating glowing particles
+            updateParticles();
+
+            // Orbit controls update
+            controls.update();
+
+            renderer.render(scene, camera);
+        }
+
+        // DOM Initialization & UI Handlers
+        window.addEventListener('load', () => {
+            init3D();
+            animate();
+            drawVisualizer();
+
+            // Start Audio Modal Button
+            document.getElementById('start-audio-btn').addEventListener('click', () => {
+                audioEngine.init();
+                document.getElementById('audio-prompt').classList.add('opacity-0', 'pointer-events-none');
+            });
+
+            // Preset Selector
+            document.getElementById('preset-select').addEventListener('change', (e) => {
+                audioEngine.preset = e.target.value;
+            });
+
+            // Demo Song Buttons
+            document.getElementById('btn-play-song').addEventListener('click', () => {
+                if (isPlayingSong) {
+                    stopDemoSong();
+                } else {
+                    const songId = document.getElementById('song-select').value;
+                    playDemoSong(songId);
+                }
+            });
+
+            // Camera Buttons
+            document.querySelectorAll('.cam-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
+                    const target = e.currentTarget;
+                    target.classList.add('active');
+                    setCameraPreset(target.dataset.camera);
+                });
+            });
+
+            // Audio Sliders
+            document.getElementById('volume-slider').addEventListener('input', (e) => {
+                audioEngine.setVolume(e.target.value);
+            });
+
+            document.getElementById('reverb-slider').addEventListener('input', (e) => {
+                audioEngine.setReverb(e.target.value);
+            });
+
+            // Sustain Button Toggle
+            document.getElementById('sustain-btn').addEventListener('click', () => {
+                toggleSustain();
+            });
+
+            // Toggle Labels
+            document.getElementById('toggle-labels-btn').addEventListener('click', (e) => {
+                showLabels = !showLabels;
+                e.currentTarget.classList.toggle('active', showLabels);
+                keyLabelSprites.forEach(s => s.visible = showLabels);
+            });
+
+            // Toggle Particles
+            document.getElementById('toggle-particles-btn').addEventListener('click', (e) => {
+                particlesEnabled = !particlesEnabled;
+                e.currentTarget.classList.toggle('active', particlesEnabled);
+            });
+
+            // Help Modal Handlers
+            const helpModal = document.getElementById('help-modal');
+            document.getElementById('toggle-help-btn').addEventListener('click', () => {
+                helpModal.classList.remove('opacity-0', 'pointer-events-none');
+            });
+            document.getElementById('close-help-btn').addEventListener('click', () => {
+                helpModal.classList.add('opacity-0', 'pointer-events-none');
+            });
+
+            // Responsive Resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        });
+    </script>
+</body>
+</html>
